@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" width="240" height="160" fill="none">
+  <!-- 收件托盘 -->
+  <path d="M48 84 L72 84 L84 100 L156 100 L168 84 L192 84" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M48 84 L64 52 L176 52 L192 84 L192 116 L48 116 Z" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 托盘内底 -->
+  <line x1="64" y1="116" x2="176" y2="116" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/>
+  <!-- 悬浮对勾圆章 -->
+  <circle cx="120" cy="38" r="18" stroke="#CBD5E1" stroke-width="2"/>
+  <path d="M111 38.5 L117.5 45 L130 32" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

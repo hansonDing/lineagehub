@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <!-- 左侧三个圆角小方块节点 -->
+  <rect x="7" y="8" width="13" height="13" rx="3" stroke="#5EEAD4" stroke-width="2"/>
+  <rect x="7" y="25.5" width="13" height="13" rx="3" stroke="#5EEAD4" stroke-width="2"/>
+  <rect x="7" y="43" width="13" height="13" rx="3" stroke="#5EEAD4" stroke-width="2"/>
+  <!-- 两条有向连线汇入右侧较大节点 -->
+  <path d="M20 14.5 C 30 14.5, 32 20, 40 24" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 32 L40 32" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 49.5 C 30 49.5, 32 44, 40 40" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round"/>
+  <!-- 箭头(方向指向下游) -->
+  <path d="M36.5 21.5 L41.5 25 L36 27.5" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36.5 29 L41.5 32 L36.5 35" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36 36.5 L41.5 39 L36.5 42.5" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 右侧较大节点 -->
+  <rect x="43" y="23" width="18" height="18" rx="4" stroke="#5EEAD4" stroke-width="2" fill="rgba(45,212,191,0.10)"/>
+</svg>
