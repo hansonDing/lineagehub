@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" width="240" height="160" fill="none">
+  <!-- 虚线勾勒的三个圆角矩形节点 -->
+  <rect x="24" y="30" width="56" height="28" rx="6" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round"/>
+  <rect x="24" y="96" width="56" height="28" rx="6" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round"/>
+  <rect x="120" y="63" width="56" height="28" rx="6" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round"/>
+  <!-- 断开的虚线连线 -->
+  <path d="M80 44 C 92 44, 96 56, 108 66" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round"/>
+  <path d="M80 110 C 92 110, 96 100, 108 90" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round"/>
+  <!-- 右上方放大镜 -->
+  <circle cx="196" cy="40" r="16" stroke="#CBD5E1" stroke-width="2"/>
+  <line x1="207" y1="51" x2="219" y2="63" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/>
+</svg>

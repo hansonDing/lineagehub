@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" width="240" height="160" fill="none">
+  <!-- 数据库圆柱 -->
+  <ellipse cx="104" cy="46" rx="44" ry="14" stroke="#CBD5E1" stroke-width="2"/>
+  <path d="M60 46 L60 106 C60 113.7 79.7 120 104 120 C128.3 120 148 113.7 148 106 L148 46" stroke="#CBD5E1" stroke-width="2"/>
+  <path d="M60 76 C60 83.7 79.7 90 104 90 C128.3 90 148 83.7 148 76" stroke="#CBD5E1" stroke-width="2"/>
+  <!-- 右下角放大镜 -->
+  <circle cx="182" cy="102" r="16" stroke="#CBD5E1" stroke-width="2"/>
+  <line x1="193" y1="113" x2="205" y2="125" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/>
+</svg>
