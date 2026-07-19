@@ -1,0 +1,10 @@
+# 前端构建产物与依赖(镜像内重新构建)
+node_modules
+dist
+# 本地 SQLite 数据库(容器启动时自动建库 + 灌入种子)
+backend/lineage.db
+# Python 缓存
+__pycache__
+*.pyc
+# 版本控制
+.git
