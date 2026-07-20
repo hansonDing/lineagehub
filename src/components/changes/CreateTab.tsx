@@ -26,6 +26,7 @@ import {
   submitSqlChange,
 } from '@/lib/api'
 import { formatChangeId } from '@/lib/format'
+import { getLang, translate, useT } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import { CodeEditor } from '@/components/common/CodeEditor'
 import { LayerBadge } from '@/components/common/LayerBadge'
@@ -88,6 +89,7 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 }
 
 export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => void }) {
+  const { t } = useT()
   const { user } = useUser()
   const [tables, setTables] = useState<TableListItem[]>([])
   const [scripts, setScripts] = useState<SqlScript[]>([])
@@ -133,7 +135,7 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
     setSqlLoading(true)
     getScript(Number(scriptId))
       .then((s) => setSql(s.sql_text))
-      .catch(() => setSqlError('脚本内容加载失败'))
+      .catch(() => setSqlError(translate(getLang(), 'changes.create.sql.loadFailed')))
       .finally(() => setSqlLoading(false))
   }, [scriptId])
 
@@ -166,8 +168,8 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
     notifyApprovalsChanged()
     const approvers = new Set(detail.approvals.map((a) => a.approver_name))
     toast.success(
-      `变更 ${formatChangeId(detail.event.id)} 已发起`,
-      `已通知 ${approvers.size} 位负责人审批`,
+      t('changes.create.toast.submitted', { id: formatChangeId(detail.event.id) }),
+      t('changes.create.toast.notified', { count: approvers.size }),
     )
     // 展开后滚入视口
     window.setTimeout(() => {
@@ -187,7 +189,7 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
       })) as unknown as ChangeDetailReal
       handleResult(detail)
     } catch (e) {
-      setDdlError(e instanceof Error ? e.message : '提交失败,请检查 DDL')
+      setDdlError(e instanceof Error ? e.message : t('changes.create.ddl.submitFailed'))
     } finally {
       setDdlSubmitting(false)
     }
@@ -205,7 +207,7 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
       })) as unknown as ChangeDetailReal
       handleResult(detail)
     } catch (e) {
-      setSqlError(e instanceof Error ? e.message : '提交失败,请检查 SQL')
+      setSqlError(e instanceof Error ? e.message : t('changes.create.sql.submitFailed'))
     } finally {
       setSqlSubmitting(false)
     }
@@ -229,9 +231,9 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
       {metaError && (
         <div className="mb-3 flex items-center gap-2 rounded-md bg-danger-light px-3 py-2 text-xs text-danger">
           <AlertCircle className="size-3.5" />
-          表 / 脚本列表加载失败
+          {t('changes.create.meta.loadFailed')}
           <button type="button" onClick={loadMeta} className="font-medium text-primary-600 hover:underline">
-            重试
+            {t('common.button.retry')}
           </button>
         </div>
       )}
@@ -241,8 +243,8 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
         <CardShell
           index={0}
           icon={FileDiff}
-          title="DDL 变更"
-          hint="上游表新增/删除/改字段"
+          title={t('common.changeType.ddl_change')}
+          hint={t('changes.create.ddl.hint')}
           footer={
             <Button
               variant="secondary"
@@ -250,27 +252,27 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
               disabled={!tableId || !ddl.trim()}
               onClick={() => void submitDdl()}
             >
-              {ddlSubmitting ? '解析中…' : '提交变更并分析影响'}
+              {ddlSubmitting ? t('changes.create.parsing') : t('changes.create.submit')}
             </Button>
           }
         >
           <div>
-            <FieldLabel required>选择表</FieldLabel>
+            <FieldLabel required>{t('changes.create.ddl.selectTable')}</FieldLabel>
             <SearchSelect
               value={tableId}
               onChange={setTableId}
               options={tableOptions}
-              placeholder="搜索并选择数仓表"
-              searchPlaceholder="输入表名搜索…"
+              placeholder={t('changes.create.ddl.tablePlaceholder')}
+              searchPlaceholder={t('changes.create.ddl.tableSearch')}
             />
           </div>
           <div>
-            <FieldLabel required>新 DDL</FieldLabel>
+            <FieldLabel required>{t('changes.create.ddl.newDdl')}</FieldLabel>
             <CodeEditor
               value={ddl}
               onChange={setDdl}
               minHeight={220}
-              placeholder={'ALTER TABLE ... / 完整 CREATE TABLE'}
+              placeholder={t('changes.create.ddl.editorPlaceholder')}
             />
           </div>
           {ddlError && (
@@ -284,8 +286,8 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
         <CardShell
           index={1}
           icon={FileCode2}
-          title="SQL 变更"
-          hint="中间 ETL 逻辑改动导致血缘变化"
+          title={t('common.changeType.sql_change')}
+          hint={t('changes.create.sql.hint')}
           footer={
             <Button
               variant="secondary"
@@ -293,24 +295,24 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
               disabled={!scriptId || !sql.trim() || sqlLoading}
               onClick={() => void submitSql()}
             >
-              {sqlSubmitting ? '解析中…' : '提交变更并分析影响'}
+              {sqlSubmitting ? t('changes.create.parsing') : t('changes.create.submit')}
             </Button>
           }
         >
           <div>
-            <FieldLabel required>选择脚本</FieldLabel>
+            <FieldLabel required>{t('changes.create.sql.selectScript')}</FieldLabel>
             <SearchSelect
               value={scriptId}
               onChange={setScriptId}
               options={scriptOptions}
-              placeholder="选择 ETL 脚本"
-              searchPlaceholder="输入脚本名搜索…"
+              placeholder={t('changes.create.sql.scriptPlaceholder')}
+              searchPlaceholder={t('changes.create.sql.scriptSearch')}
             />
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <FieldLabel required>新 SQL</FieldLabel>
-              {scriptId && <span className="text-xs text-slate-400">已载入当前版本,基于当前版本修改</span>}
+              <FieldLabel required>{t('changes.create.sql.newSql')}</FieldLabel>
+              {scriptId && <span className="text-xs text-slate-400">{t('changes.create.sql.loadedNote')}</span>}
             </div>
             {sqlLoading ? (
               <div className="h-[220px] animate-pulse-soft rounded-lg bg-slate-100" />
@@ -319,7 +321,7 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                 value={sql}
                 onChange={setSql}
                 minHeight={220}
-                placeholder="选择脚本后自动载入当前版本 SQL"
+                placeholder={t('changes.create.sql.editorPlaceholder')}
               />
             )}
           </div>
@@ -347,11 +349,11 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
             <div className="mt-4 rounded-lg border border-slate-200 bg-white shadow-card">
               {/* 头部 */}
               <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-                <h3 className="text-[15px] font-semibold text-slate-900">影响分析</h3>
+                <h3 className="text-[15px] font-semibold text-slate-900">{t('changes.impact.title')}</h3>
                 <span className="rounded bg-slate-100 px-1.5 font-mono text-[11px] leading-4 text-slate-600">
                   {formatChangeId(result.event.id)}
                 </span>
-                <span className="text-xs text-slate-400">沿血缘向下游 BFS 遍历</span>
+                <span className="text-xs text-slate-400">{t('changes.impact.subtitle')}</span>
               </div>
 
               <div className="space-y-4 p-4">
@@ -359,8 +361,10 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                 <div className="flex flex-wrap items-center gap-3 rounded-md bg-success-light px-3 py-2.5">
                   <CheckCircle2 className="size-4 shrink-0 text-success" />
                   <span className="text-[13px] font-medium text-success">
-                    变更 {formatChangeId(result.event.id)} 已发起,已通知 {approvers.length}{' '}
-                    位负责人审批
+                    {t('changes.create.result.success', {
+                      id: formatChangeId(result.event.id),
+                      count: approvers.length,
+                    })}
                   </span>
                   <span className="ml-auto flex items-center gap-2">
                     <Button
@@ -374,10 +378,10 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                         setScriptId('')
                       }}
                     >
-                      继续发起新变更
+                      {t('changes.create.result.continue')}
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => onSubmitted(result.event.id)}>
-                      查看变更事件
+                      {t('changes.create.result.viewEvent')}
                     </Button>
                   </span>
                 </div>
@@ -386,18 +390,18 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                 {result.impacted_reports.length > 10 && (
                   <div className="flex items-center gap-2 rounded-md bg-pending-light px-3 py-2 text-xs text-pending">
                     <AlertCircle className="size-3.5" />
-                    影响 {result.impacted_reports.length} 个报表,建议拆分变更
+                    {t('changes.create.result.tooMany', { count: result.impacted_reports.length })}
                   </div>
                 )}
 
                 <div className="grid grid-cols-12 gap-4">
                   {/* 变更差异区 */}
                   <div className="col-span-12 lg:col-span-5">
-                    <h4 className="mb-2 text-xs font-medium text-slate-500">变更差异</h4>
+                    <h4 className="mb-2 text-xs font-medium text-slate-500">{t('changes.diff.title')}</h4>
                     {isDiffEmpty(result.diff) ? (
                       <p className="flex items-center gap-1.5 rounded-md bg-info-light px-3 py-2 text-xs text-info">
                         <Info className="size-3.5" />
-                        血缘无变化,无需发起审批
+                        {t('changes.create.result.noDiff')}
                       </p>
                     ) : (
                       <ChangeDiffView type={result.event.change_type} diff={result.diff} />
@@ -407,7 +411,7 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                   {/* 受影响对象区 */}
                   <div className="col-span-12 lg:col-span-7">
                     <div className="mb-2 flex items-center justify-between">
-                      <h4 className="text-xs font-medium text-slate-500">受影响对象</h4>
+                      <h4 className="text-xs font-medium text-slate-500">{t('changes.impact.objects')}</h4>
                       <ImpactChips
                         reports={result.impacted_reports.map((r) => r.name)}
                         systems={result.impacted_systems.map((s) => s.name)}
@@ -418,20 +422,20 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                       {[
                         {
                           icon: BarChart3,
-                          label: `受影响报表 ${result.impacted_reports.length}`,
+                          label: t('changes.impact.reportsWithCount', { count: result.impacted_reports.length }),
                           names: result.impacted_reports.map((r) => r.name),
                           mono: false,
                         },
                         {
                           icon: Send,
-                          label: `受影响下游系统 ${result.impacted_systems.length}`,
+                          label: t('changes.impact.systemsWithCount', { count: result.impacted_systems.length }),
                           names: result.impacted_systems.map((s) => s.name),
                           mono: false,
                         },
                         {
                           icon: Table2,
-                          label: `受影响中间表 ${result.impacted_tables.length}`,
-                          names: result.impacted_tables.map((t) => t.name),
+                          label: t('changes.impact.tablesWithCount', { count: result.impacted_tables.length }),
+                          names: result.impacted_tables.map((tbl) => tbl.name),
                           mono: true,
                         },
                       ].map((section, i) => (
@@ -446,7 +450,7 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                             {section.label}
                           </p>
                           {section.names.length === 0 ? (
-                            <p className="pl-5 text-xs text-slate-400">无</p>
+                            <p className="pl-5 text-xs text-slate-400">{t('changes.impact.none')}</p>
                           ) : (
                             <ul className="space-y-1 pl-5">
                               {section.names.map((name) => (
@@ -470,10 +474,10 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                     {/* 审批人清单(自动生成) */}
                     <div className="mt-4">
                       <h4 className="mb-2 text-xs font-medium text-slate-500">
-                        审批人清单(按影响面自动生成)
+                        {t('changes.create.result.approvers')}
                       </h4>
                       {approvers.length === 0 ? (
-                        <p className="text-xs text-slate-400">无审批任务</p>
+                        <p className="text-xs text-slate-400">{t('changes.create.result.noApprovers')}</p>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {approvers.map((a, i) => (

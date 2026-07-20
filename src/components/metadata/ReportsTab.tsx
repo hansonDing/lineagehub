@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { Report, ReportListItem, System, TableListItem } from '@/lib/api'
 import { createReport, deleteReport, updateReport } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import type { Column } from '@/components/common/DataTable'
 import { DataTable } from '@/components/common/DataTable'
@@ -26,7 +27,12 @@ import { layerOf } from '@/components/sql/parsePreview'
 type Row = ReportListItem & Record<string, unknown>
 
 const PAUSED_KEY = 'lineagehub:paused-report-ids'
-const SCHEDULE_PRESETS = ['每日 08:00', '每日 09:30', '每小时', '每月 1 日 09:00']
+const SCHEDULE_PRESET_KEYS = [
+  'metadata.reports.schedule.preset1',
+  'metadata.reports.schedule.preset2',
+  'metadata.reports.schedule.preset3',
+  'metadata.reports.schedule.preset4',
+]
 
 function loadPaused(): Set<number> {
   try {
@@ -50,6 +56,7 @@ export interface ReportsTabProps {
 }
 
 export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepLink, deepLinkNonce }: ReportsTabProps) {
+  const { t } = useT()
   const [keyword, setKeyword] = useState('')
   const [systemFilter, setSystemFilter] = useState<'all' | number>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'paused'>('all')
@@ -70,10 +77,10 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     const next = new Set(paused)
     if (next.has(r.id)) {
       next.delete(r.id)
-      toast.success('报表已恢复运行', r.name)
+      toast.success(t('metadata.reports.toast.resumed'), r.name)
     } else {
       next.add(r.id)
-      toast.info('报表已暂停', r.name)
+      toast.info(t('metadata.reports.toast.paused'), r.name)
     }
     setPaused(next)
     try {
@@ -97,11 +104,14 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     setDeleteLoading(true)
     try {
       await deleteReport(deleteTarget.id)
-      toast.success('报表已删除', deleteTarget.name)
+      toast.success(t('metadata.reports.toast.deleted'), deleteTarget.name)
       setDeleteTarget(null)
       onRefresh()
     } catch (err) {
-      toast.error('删除失败', err instanceof Error ? err.message : '请求失败')
+      toast.error(
+        t('metadata.toast.deleteFailed'),
+        err instanceof Error ? err.message : t('metadata.toast.requestFailed'),
+      )
     } finally {
       setDeleteLoading(false)
     }
@@ -110,7 +120,7 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
   const columns: Column<Row>[] = [
     {
       key: 'name',
-      title: '报表名称',
+      title: t('metadata.reports.col.name'),
       render: (row) => (
         <span>
           <span className="block text-[13px] font-semibold text-slate-900">{row.name}</span>
@@ -122,7 +132,7 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     },
     {
       key: 'table_name',
-      title: '基表',
+      title: t('metadata.reports.col.table'),
       render: (row) => (
         <span className="flex items-center gap-2">
           <LayerBadge layer={layerOf(row.table_name)} />
@@ -137,7 +147,7 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     },
     {
       key: 'target_system_name',
-      title: '目标系统',
+      title: t('metadata.reports.col.target'),
       render: (row) => (
         <span className="flex items-center gap-1.5">
           <Send className="size-3 text-slate-400" />
@@ -147,7 +157,7 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     },
     {
       key: 'owner',
-      title: '负责人',
+      title: t('metadata.field.owner'),
       render: (row) => (
         <span className="flex items-center gap-1.5">
           <Avatar name={row.owner || '?'} size={24} />
@@ -157,7 +167,7 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     },
     {
       key: 'schedule',
-      title: '调度',
+      title: t('metadata.reports.col.schedule'),
       render: (row) => (
         <span className="flex items-center gap-1.5">
           <CalendarClock className="size-3 text-slate-400" />
@@ -167,13 +177,13 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     },
     {
       key: 'status',
-      title: '状态',
+      title: t('metadata.field.status'),
       width: 92,
       render: (row) => <StatusBadge status={statusOf(row)} />,
     },
     {
       key: 'actions',
-      title: '操作',
+      title: t('metadata.field.actions'),
       width: 116,
       align: 'right',
       render: (row) => (
@@ -181,7 +191,7 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="编辑"
+            aria-label={t('common.button.edit')}
             onClick={() => {
               setEditing(row)
               setModalOpen(true)
@@ -192,12 +202,12 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={statusOf(row) === 'running' ? '暂停' : '恢复运行'}
+            aria-label={statusOf(row) === 'running' ? t('metadata.reports.pause') : t('metadata.reports.resume')}
             onClick={() => togglePaused(row)}
           >
             {statusOf(row) === 'running' ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="删除" onClick={() => setDeleteTarget(row)}>
+          <Button variant="ghost" size="icon-sm" aria-label={t('common.button.delete')} onClick={() => setDeleteTarget(row)}>
             <Trash2 className="size-3.5" />
           </Button>
         </span>
@@ -213,13 +223,13 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
     <div>
       {/* 工具条 */}
       <div className="mb-3 flex items-center gap-2">
-        <SearchInput value={keyword} onChange={setKeyword} placeholder="搜索报表 / 负责人…" className="w-60" />
+        <SearchInput value={keyword} onChange={setKeyword} placeholder={t('metadata.reports.searchPlaceholder')} className="w-60" />
         <SelectInput
           value={String(systemFilter)}
           onChange={(e) => setSystemFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
           className="w-36"
         >
-          <option value="all">全部目标系统</option>
+          <option value="all">{t('metadata.reports.filter.allTargets')}</option>
           {targetSystems.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -231,9 +241,9 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
           onChange={(e) => setStatusFilter(e.target.value as 'all' | 'running' | 'paused')}
           className="w-28"
         >
-          <option value="all">全部状态</option>
-          <option value="running">运行中</option>
-          <option value="paused">已暂停</option>
+          <option value="all">{t('metadata.reports.filter.allStatus')}</option>
+          <option value="running">{t('common.status.running')}</option>
+          <option value="paused">{t('common.status.paused')}</option>
         </SelectInput>
         <div className="ml-auto">
           <Button
@@ -243,7 +253,7 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
             }}
           >
             <Plus className="size-3.5" />
-            新增报表
+            {t('metadata.reports.add')}
           </Button>
         </div>
       </div>
@@ -254,12 +264,12 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
         rowKey={(row) => row.id}
         loading={loading}
         emptyImage="/empty-table.svg"
-        emptyTitle={hasFilter ? '未找到匹配的报表' : '还没有报表'}
-        emptyDescription={hasFilter ? '换个关键词,或检查筛选条件' : '点击右上角「新增报表」创建'}
+        emptyTitle={hasFilter ? t('metadata.reports.empty.title') : t('metadata.reports.empty.noneTitle')}
+        emptyDescription={hasFilter ? t('metadata.empty.filterDesc') : t('metadata.reports.empty.noneDesc')}
         footer={
           hasFilter && filtered.length !== reports.length
-            ? `筛选出 ${filtered.length} 条 / 共 ${reports.length} 条`
-            : `共 ${filtered.length} 条`
+            ? t('metadata.table.filteredTotal', { filtered: filtered.length, total: reports.length })
+            : t('common.table.total', { count: filtered.length })
         }
       />
 
@@ -275,12 +285,13 @@ export function ReportsTab({ reports, systems, tables, loading, onRefresh, deepL
       <ConfirmDeleteModal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title="删除报表"
+        title={t('metadata.reports.delete.title')}
         description={
           deleteTarget && (
             <>
-              删除报表「<span className="font-medium text-slate-900">{deleteTarget.name}</span>
-              」?其负责人审批任务将一并失效,该操作不可撤销。
+              {t('metadata.reports.delete.confirmPre')}
+              <span className="font-medium text-slate-900">{deleteTarget.name}</span>
+              {t('metadata.reports.delete.confirmPost')}
             </>
           )
         }
@@ -309,6 +320,7 @@ function ReportModal({
   targetSystems: System[]
   onSaved: () => void
 }) {
+  const { t } = useT()
   const [name, setName] = useState('')
   const [tableId, setTableId] = useState<number | null>(null)
   const [tableQuery, setTableQuery] = useState('')
@@ -344,11 +356,11 @@ function ReportModal({
 
   const handleSave = async () => {
     const next: Record<string, string> = {}
-    if (!name.trim()) next.name = '请填写报表名称'
-    if (tableId === null) next.table = '请选择基表'
-    if (targetSystemId === null) next.system = '请选择目标系统'
-    if (!owner.trim()) next.owner = '请填写报表负责人'
-    if (!schedule.trim()) next.schedule = '请填写调度'
+    if (!name.trim()) next.name = t('metadata.reports.modal.errorName')
+    if (tableId === null) next.table = t('metadata.reports.modal.errorTable')
+    if (targetSystemId === null) next.system = t('metadata.reports.modal.errorSystem')
+    if (!owner.trim()) next.owner = t('metadata.reports.modal.errorOwner')
+    if (!schedule.trim()) next.schedule = t('metadata.reports.modal.errorSchedule')
     setErrors(next)
     if (Object.keys(next).length > 0) return
     setSaving(true)
@@ -367,11 +379,14 @@ function ReportModal({
       } else {
         await createReport(payload)
       }
-      toast.success('报表已保存', '其负责人将接收上游变更审批')
+      toast.success(t('metadata.reports.toast.saved'), t('metadata.reports.toast.savedDesc'))
       onSaved()
       onClose()
     } catch (err) {
-      toast.error('保存失败', err instanceof Error ? err.message : '请刷新后重试')
+      toast.error(
+        t('metadata.toast.saveFailed'),
+        err instanceof Error ? err.message : t('metadata.toast.retryLater'),
+      )
     } finally {
       setSaving(false)
     }
@@ -381,28 +396,28 @@ function ReportModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? `编辑报表 · ${editing.name}` : '新增报表'}
+      title={editing ? t('metadata.reports.modal.editTitle', { name: editing.name }) : t('metadata.reports.add')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            取消
+            {t('common.button.cancel')}
           </Button>
           <Button onClick={() => void handleSave()} loading={saving}>
-            {saving ? '保存中…' : '保存'}
+            {saving ? t('metadata.button.saving') : t('common.button.save')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <div>
-          <FieldLabel required>报表名称</FieldLabel>
+          <FieldLabel required>{t('metadata.reports.col.name')}</FieldLabel>
           <TextInput
             value={name}
             onChange={(e) => {
               setName(e.target.value)
               setErrors((p) => ({ ...p, name: '' }))
             }}
-            placeholder="经营日报"
+            placeholder={t('metadata.reports.modal.namePlaceholder')}
             error={!!errors.name}
           />
           <FieldError>{errors.name}</FieldError>
@@ -410,7 +425,7 @@ function ReportModal({
 
         {/* 基表(搜索 Select,仅 ADS 层) */}
         <div>
-          <FieldLabel required>基表</FieldLabel>
+          <FieldLabel required>{t('metadata.reports.col.table')}</FieldLabel>
           <div className="relative">
             <button
               type="button"
@@ -427,7 +442,7 @@ function ReportModal({
                   <span
                     role="button"
                     tabIndex={-1}
-                    aria-label="清除基表"
+                    aria-label={t('metadata.reports.modal.clearTable')}
                     onClick={(e) => {
                       e.stopPropagation()
                       setTableId(null)
@@ -438,25 +453,25 @@ function ReportModal({
                   </span>
                 </>
               ) : (
-                <span className="text-slate-400">搜索并选择 ADS 基表…</span>
+                <span className="text-slate-400">{t('metadata.reports.modal.tablePlaceholder')}</span>
               )}
             </button>
             {comboOpen && (
               <>
-                <button type="button" aria-label="关闭" className="fixed inset-0 z-10 cursor-default" onClick={() => setComboOpen(false)} />
+                <button type="button" aria-label={t('common.close')} className="fixed inset-0 z-10 cursor-default" onClick={() => setComboOpen(false)} />
                 <div className="absolute inset-x-0 top-9 z-20 rounded-md border border-slate-200 bg-white py-1 shadow-overlay">
                   <div className="border-b border-slate-100 px-2 py-1">
                     <input
                       autoFocus
                       value={tableQuery}
                       onChange={(e) => setTableQuery(e.target.value)}
-                      placeholder="输入过滤…"
+                      placeholder={t('metadata.reports.modal.tableFilter')}
                       className="h-7 w-full rounded border border-slate-200 bg-slate-50 px-2 font-mono text-xs outline-none focus:border-primary-600"
                     />
                   </div>
                   <div className="max-h-44 overflow-y-auto">
                     {filteredTables.length === 0 ? (
-                      <p className="px-3 py-3 text-center text-xs text-slate-400">无匹配的 ADS 表</p>
+                      <p className="px-3 py-3 text-center text-xs text-slate-400">{t('metadata.reports.modal.noTable')}</p>
                     ) : (
                       filteredTables.map((t) => (
                         <button
@@ -484,11 +499,11 @@ function ReportModal({
             )}
           </div>
           <FieldError>{errors.table}</FieldError>
-          <FieldHint>报表只能基于 ADS 应用层表</FieldHint>
+          <FieldHint>{t('metadata.reports.modal.tableHint')}</FieldHint>
         </div>
 
         <div>
-          <FieldLabel required>目标系统</FieldLabel>
+          <FieldLabel required>{t('metadata.reports.col.target')}</FieldLabel>
           <SelectInput
             value={targetSystemId === null ? '' : String(targetSystemId)}
             onChange={(e) => {
@@ -497,7 +512,7 @@ function ReportModal({
             }}
             className={errors.system ? 'border-danger' : undefined}
           >
-            <option value="">请选择目标系统</option>
+            <option value="">{t('metadata.reports.modal.systemPlaceholder')}</option>
             {targetSystems.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -509,26 +524,26 @@ function ReportModal({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <FieldLabel required>报表负责人</FieldLabel>
+            <FieldLabel required>{t('metadata.reports.modal.owner')}</FieldLabel>
             <TextInput
               value={owner}
               onChange={(e) => {
                 setOwner(e.target.value)
                 setErrors((p) => ({ ...p, owner: '' }))
               }}
-              placeholder="张三"
+              placeholder={t('metadata.field.ownerPlaceholder')}
               error={!!errors.owner}
             />
             <FieldError>{errors.owner}</FieldError>
           </div>
           <div>
-            <FieldLabel>负责人联系方式</FieldLabel>
-            <TextInput value={ownerContact} onChange={(e) => setOwnerContact(e.target.value)} placeholder="邮箱或 IM" mono />
+            <FieldLabel>{t('metadata.reports.modal.ownerContact')}</FieldLabel>
+            <TextInput value={ownerContact} onChange={(e) => setOwnerContact(e.target.value)} placeholder={t('metadata.field.contactPlaceholder')} mono />
           </div>
         </div>
 
         <div>
-          <FieldLabel required>调度</FieldLabel>
+          <FieldLabel required>{t('metadata.reports.col.schedule')}</FieldLabel>
           <motion.div
             key={presetBump}
             initial={{ opacity: 0 }}
@@ -541,32 +556,32 @@ function ReportModal({
                 setSchedule(e.target.value)
                 setErrors((p) => ({ ...p, schedule: '' }))
               }}
-              placeholder="每日 08:00"
+              placeholder={t('metadata.reports.modal.schedulePlaceholder')}
               error={!!errors.schedule}
             />
           </motion.div>
           <FieldError>{errors.schedule}</FieldError>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {SCHEDULE_PRESETS.map((p) => (
+            {SCHEDULE_PRESET_KEYS.map((key) => (
               <button
-                key={p}
+                key={key}
                 type="button"
                 onClick={() => {
-                  setSchedule(p)
+                  setSchedule(t(key))
                   setPresetBump((b) => b + 1)
                   setErrors((prev) => ({ ...prev, schedule: '' }))
                 }}
                 className="rounded border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-500 transition-colors duration-120 hover:border-primary-600 hover:text-primary-700"
               >
-                {p}
+                {t(key)}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <FieldLabel>描述</FieldLabel>
-          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="经营分析日报,输出至 BI 平台" />
+          <FieldLabel>{t('metadata.field.description')}</FieldLabel>
+          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder={t('metadata.reports.modal.descPlaceholder')} />
         </div>
       </div>
     </Modal>

@@ -12,6 +12,7 @@ import { GitBranchPlus } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { listApprovals, listChanges } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 import { Tabs } from '@/components/common/Tabs'
 import { APPROVALS_REFRESH_EVENT } from '@/components/Layout'
 import { useUser } from '@/hooks/useUser'
@@ -40,11 +41,12 @@ interface StatsData {
 }
 
 function StatsBar({ stats, loading }: { stats: StatsData | null; loading: boolean }) {
+  const { t } = useT()
   const segments: { label: string; value: number; className: string }[] = [
-    { label: '待我审批', value: stats?.mine ?? 0, className: 'text-pending' },
-    { label: '审批中', value: stats?.approving ?? 0, className: 'text-info' },
-    { label: '本周已生效', value: stats?.effectiveWeek ?? 0, className: 'text-success' },
-    { label: '已驳回', value: stats?.rejected ?? 0, className: 'text-danger' },
+    { label: t('changes.stats.mine'), value: stats?.mine ?? 0, className: 'text-pending' },
+    { label: t('common.status.approving'), value: stats?.approving ?? 0, className: 'text-info' },
+    { label: t('changes.stats.effectiveWeek'), value: stats?.effectiveWeek ?? 0, className: 'text-success' },
+    { label: t('common.status.rejected'), value: stats?.rejected ?? 0, className: 'text-danger' },
   ]
   return (
     <div className="mb-4 flex h-16 items-stretch rounded-lg border border-slate-200 bg-white shadow-card">
@@ -80,6 +82,7 @@ function StatsBar({ stats, loading }: { stats: StatsData | null; loading: boolea
 }
 
 export default function Changes() {
+  const { t } = useT()
   const { user } = useUser()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab') ?? 'inbox'
@@ -176,10 +179,10 @@ export default function Changes() {
     <div>
       {/* 页面头 */}
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold leading-7 text-slate-900">变更与审批</h1>
+        <h1 className="text-xl font-semibold leading-7 text-slate-900">{t('changes.title')}</h1>
         <Button variant="primary" onClick={() => setTab('create')}>
           <GitBranchPlus className="size-3.5" />
-          发起变更
+          {t('changes.action.create')}
         </Button>
       </div>
 
@@ -192,12 +195,12 @@ export default function Changes() {
         items={[
           {
             key: 'inbox',
-            label: '审批收件箱',
+            label: t('changes.tabs.inbox'),
             count: stats?.mine,
             countTone: 'pending',
           },
-          { key: 'events', label: '变更事件' },
-          { key: 'create', label: '发起变更' },
+          { key: 'events', label: t('changes.tabs.events') },
+          { key: 'create', label: t('changes.action.create') },
         ]}
         value={tab}
         onChange={setTab}
