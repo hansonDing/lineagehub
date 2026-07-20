@@ -14,35 +14,35 @@ export const SEED_SYSTEMS: {
   contact: string
   description: string
 }[] = [
-  { name: '订单中心', kind: 'source', owner: 'Hanson', contact: 'hanson@example.com', description: '交易订单业务库' },
-  { name: '用户中心', kind: 'source', owner: 'Jacky', contact: 'jacky@example.com', description: '用户主数据业务库' },
-  { name: 'BI 平台', kind: 'target', owner: 'Jerry', contact: 'jerry@example.com', description: '经营分析看板平台' },
-  { name: '财务系统', kind: 'target', owner: 'Maggie', contact: 'maggie@example.com', description: '财务核算与报表系统' },
+  { name: 'Order Center', kind: 'source', owner: 'Hanson', contact: 'hanson@example.com', description: 'Transactional order business database' },
+  { name: 'User Center', kind: 'source', owner: 'Jacky', contact: 'jacky@example.com', description: 'User master data database' },
+  { name: 'BI Platform', kind: 'target', owner: 'Jerry', contact: 'jerry@example.com', description: 'Business analysis dashboard platform' },
+  { name: 'Finance System', kind: 'target', owner: 'Maggie', contact: 'maggie@example.com', description: 'Financial accounting and reporting system' },
 ]
 
 // ---------------------------------------------------------------- DDL
 export const DDL_TRADE_ORDER = `CREATE TABLE IF NOT EXISTS ods.ods_trade_order (
-  order_id BIGINT COMMENT '订单ID',
-  user_id BIGINT COMMENT '用户ID',
-  total_amount DECIMAL(12,2) COMMENT '订单总金额',
-  order_status STRING COMMENT '订单状态',
-  created_at TIMESTAMP COMMENT '下单时间',
-  dt STRING COMMENT '分区日期'
-) COMMENT '交易订单ODS表'`
+  order_id BIGINT COMMENT 'Order ID',
+  user_id BIGINT COMMENT 'User ID',
+  total_amount DECIMAL(12,2) COMMENT 'Total order amount',
+  order_status STRING COMMENT 'Order status',
+  created_at TIMESTAMP COMMENT 'Order placement time',
+  dt STRING COMMENT 'Partition date'
+) COMMENT 'Trade order ODS table'`
 
 export const DDL_USER_INFO = `CREATE TABLE IF NOT EXISTS ods.ods_user_info (
-  user_id BIGINT COMMENT '用户ID',
-  user_name STRING COMMENT '用户名',
-  gender STRING COMMENT '性别',
-  region_code STRING COMMENT '地区编码',
-  register_time TIMESTAMP COMMENT '注册时间'
-) COMMENT '用户信息ODS表'`
+  user_id BIGINT COMMENT 'User ID',
+  user_name STRING COMMENT 'User name',
+  gender STRING COMMENT 'Gender',
+  region_code STRING COMMENT 'Region code',
+  register_time TIMESTAMP COMMENT 'Registration time'
+) COMMENT 'User info ODS table'`
 
 export const DDL_DIM_REGION = `CREATE TABLE IF NOT EXISTS dim.dim_region (
-  region_code STRING COMMENT '地区编码',
-  region_name STRING COMMENT '地区名称',
-  region_level INT COMMENT '地区层级'
-) COMMENT '地区维表'`
+  region_code STRING COMMENT 'Region code',
+  region_name STRING COMMENT 'Region name',
+  region_level INT COMMENT 'Region level'
+) COMMENT 'Region dimension table'`
 
 // ---------------------------------------------------------------- ETL(JOIN / GROUP BY / CTE)
 export const ETL_DWD = `INSERT OVERWRITE TABLE dwd.dwd_trade_order_detail
@@ -115,8 +115,8 @@ export const SEED_SCRIPTS: { name: string; sql_text: string }[] = [
 
 /** 表来源配置(管理页手工配置语义,种子期直接写入) */
 export const SEED_TABLE_SOURCE: Record<string, string> = {
-  'ods.ods_trade_order': '订单中心',
-  'ods.ods_user_info': '用户中心',
+  'ods.ods_trade_order': 'Order Center',
+  'ods.ods_user_info': 'User Center',
 }
 
 /** 表负责人 */
@@ -132,13 +132,13 @@ export const SEED_TABLE_OWNERS: Record<string, string> = {
 
 // ---------------------------------------------------------------- 鉴权(与 backend/app/routers/auth.py PRESET_USERS 一致)
 export const SEED_AUTH_USERS: { name: string; role: string }[] = [
-  { name: 'Leo', role: '数据工程师' },
-  { name: 'Doris', role: '数据工程师' },
-  { name: 'Fiona', role: '数据分析师' },
-  { name: 'Hanson', role: '系统负责人' },
-  { name: 'Jacky', role: '系统负责人' },
-  { name: 'Jerry', role: 'BI 工程师' },
-  { name: 'Maggie', role: '财务分析师' },
+  { name: 'Leo', role: 'Data Engineer' },
+  { name: 'Doris', role: 'Data Engineer' },
+  { name: 'Fiona', role: 'Data Analyst' },
+  { name: 'Hanson', role: 'System Owner' },
+  { name: 'Jacky', role: 'System Owner' },
+  { name: 'Jerry', role: 'BI Engineer' },
+  { name: 'Maggie', role: 'Finance Analyst' },
 ]
 
 /** 演示模式统一登录密码(对齐后端 AUTH_PASSWORD 默认值) */
@@ -192,30 +192,30 @@ export const SEED_REPORTS: {
   description: string
 }[] = [
   {
-    name: '经营日报',
+    name: 'Daily Operations Report',
     table: 'ads.ads_trade_daily_report',
-    system: 'BI 平台',
+    system: 'BI Platform',
     owner: 'Leo',
     owner_contact: 'leo@example.com',
-    schedule: '每日 08:00',
-    description: '面向管理层的每日经营核心指标',
+    schedule: 'Daily 08:00',
+    description: 'Daily core business metrics for management',
   },
   {
-    name: '财务收入月报',
+    name: 'Monthly Revenue Report',
     table: 'ads.ads_trade_daily_report',
-    system: '财务系统',
+    system: 'Finance System',
     owner: 'Doris',
     owner_contact: 'doris@example.com',
-    schedule: '每月 1 日 06:00',
-    description: '财务口径收入月报',
+    schedule: 'Monthly on day 1 06:00',
+    description: 'Monthly revenue report in finance terms',
   },
   {
-    name: '用户复购分析',
+    name: 'User Repurchase Analysis',
     table: 'ads.ads_user_repurchase',
-    system: 'BI 平台',
+    system: 'BI Platform',
     owner: 'Fiona',
     owner_contact: 'fiona@example.com',
-    schedule: '每日 09:00',
-    description: '用户复购行为分析看板',
+    schedule: 'Daily 09:00',
+    description: 'User repurchase behavior analysis dashboard',
   },
 ]

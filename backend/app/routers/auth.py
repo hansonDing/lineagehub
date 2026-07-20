@@ -25,13 +25,13 @@ TOKEN_TTL_SECONDS = 24 * 3600
 
 # 预设用户:与种子数据(系统/表/报表负责人)保持一致
 PRESET_USERS: list[dict] = [
-    {"name": "Leo", "role": "数据工程师"},
-    {"name": "Doris", "role": "数据工程师"},
-    {"name": "Fiona", "role": "数据分析师"},
-    {"name": "Hanson", "role": "系统负责人"},
-    {"name": "Jacky", "role": "系统负责人"},
-    {"name": "Jerry", "role": "BI 工程师"},
-    {"name": "Maggie", "role": "财务分析师"},
+    {"name": "Leo", "role": "Data Engineer"},
+    {"name": "Doris", "role": "Data Engineer"},
+    {"name": "Fiona", "role": "Data Analyst"},
+    {"name": "Hanson", "role": "System Owner"},
+    {"name": "Jacky", "role": "System Owner"},
+    {"name": "Jerry", "role": "BI Engineer"},
+    {"name": "Maggie", "role": "Finance Analyst"},
 ]
 
 # 统一错误文案:用户不存在与密码错误不区分(避免枚举用户)

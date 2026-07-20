@@ -225,7 +225,7 @@ def render_ddl(table: DataTable) -> str:
 
 def create_approval_tasks(session: Session, event: ChangeEvent, impact: dict) -> list:
     """按影响分析结果生成审批任务:
-    报表负责人(report_owner)/ 下游系统负责人(system_owner)/ 中间表负责人(table_owner)。
+    报表负责人(report_owner)/ 下游系统 owner(system_owner)/ 中间表负责人(table_owner)。
     """
     tasks: list = []
     for rep in impact.get("reports", []):

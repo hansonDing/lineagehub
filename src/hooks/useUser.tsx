@@ -13,13 +13,13 @@ import { getMe, login as apiLogin } from '@/lib/api'
 
 /** 演示用户(与后端 PRESET_USERS 一致;登录页拉取失败时的兜底展示) */
 export const DEMO_USERS: AuthUserInfo[] = [
-  { name: 'Leo', role: '数据工程师' },
-  { name: 'Doris', role: '数据工程师' },
-  { name: 'Fiona', role: '数据分析师' },
-  { name: 'Hanson', role: '系统负责人' },
-  { name: 'Jacky', role: '系统负责人' },
-  { name: 'Jerry', role: 'BI 工程师' },
-  { name: 'Maggie', role: '财务分析师' },
+  { name: 'Leo', role: 'Data Engineer' },
+  { name: 'Doris', role: 'Data Engineer' },
+  { name: 'Fiona', role: 'Data Analyst' },
+  { name: 'Hanson', role: 'System Owner' },
+  { name: 'Jacky', role: 'System Owner' },
+  { name: 'Jerry', role: 'BI Engineer' },
+  { name: 'Maggie', role: 'Finance Analyst' },
 ]
 
 interface UserContextValue {

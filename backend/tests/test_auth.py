@@ -31,13 +31,13 @@ def test_users_list(client):
     assert len(users) == 7
     by_name = {u["name"]: u["role"] for u in users}
     assert by_name == {
-        "Leo": "数据工程师",
-        "Doris": "数据工程师",
-        "Fiona": "数据分析师",
-        "Hanson": "系统负责人",
-        "Jacky": "系统负责人",
-        "Jerry": "BI 工程师",
-        "Maggie": "财务分析师",
+        "Leo": "Data Engineer",
+        "Doris": "Data Engineer",
+        "Fiona": "Data Analyst",
+        "Hanson": "System Owner",
+        "Jacky": "System Owner",
+        "Jerry": "BI Engineer",
+        "Maggie": "Finance Analyst",
     }
     # 不泄露密码字段
     assert all(set(u.keys()) == {"name", "role"} for u in users)
@@ -48,7 +48,7 @@ def test_login_success(client):
     r = _login(client, "Fiona")
     assert r.status_code == 200
     body = r.json()
-    assert body["user"] == {"name": "Fiona", "role": "数据分析师"}
+    assert body["user"] == {"name": "Fiona", "role": "Data Analyst"}
     # token 格式:{base64url(username)}.{issued_at}.{signature},整体必须是 ASCII(可放 HTTP 头)
     token = body["token"]
     token.encode("ascii")
@@ -75,7 +75,7 @@ def test_me_valid_token(client):
     token = _login(client, "Hanson").json()["token"]
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json() == {"name": "Hanson", "role": "系统负责人"}
+    assert r.json() == {"name": "Hanson", "role": "System Owner"}
 
 
 def test_me_missing_header(client):

@@ -33,26 +33,26 @@ def test_seed_dashboard_stats(client):
     assert stats["table_count"] == 7
     assert stats["report_count"] == 3
     assert stats["system_count"] == 4
-    assert stats["edge_count"] == 7  # 3(dwd) + 1(dws) + 1(ads日报) + 2(ads复购)
+    assert stats["edge_count"] == 7  # 3(dwd) + 1(dws) + 1(ads daily report) + 2(ads repurchase)
     layers = {d["layer"]: d["count"] for d in stats["layer_distribution"]}
     assert layers == {"ods": 2, "dim": 1, "dwd": 1, "dws": 1, "ads": 2}
     assert stats["pending_changes"] == 0
-    # 热门表:ods 订单表下游 4 张(dwd/dws/ads日报/ads复购)
+    # 热门表:ods 订单表下游 4 张(dwd/dws/ads daily report/ads repurchase)
     hot = {h["name"]: h["downstream"] for h in stats["hot_tables"]}
     assert hot["ods.ods_trade_order"] == 4
 
 
 def test_seed_tables_and_reports(client):
     tables = {t["name"]: t for t in client.get("/api/tables").json()}
-    assert tables["ods.ods_trade_order"]["source_system_name"] == "订单中心"
-    assert tables["ods.ods_user_info"]["source_system_name"] == "用户中心"
+    assert tables["ods.ods_trade_order"]["source_system_name"] == "Order Center"
+    assert tables["ods.ods_user_info"]["source_system_name"] == "User Center"
     assert tables["dwd.dwd_trade_order_detail"]["column_count"] == 0  # ETL 目标无 DDL 字段
     detail = client.get(f"/api/tables/{_table_id(client, 'ods.ods_trade_order')}").json()
     assert [c["name"] for c in detail["columns"]][:3] == ["order_id", "user_id", "total_amount"]
     reports = {r["name"]: r for r in client.get("/api/reports").json()}
-    assert reports["经营日报"]["target_system_name"] == "BI 平台"
-    assert reports["财务收入月报"]["target_system_name"] == "财务系统"
-    assert reports["用户复购分析"]["table_name"] == "ads.ads_user_repurchase"
+    assert reports["Daily Operations Report"]["target_system_name"] == "BI Platform"
+    assert reports["Monthly Revenue Report"]["target_system_name"] == "Finance System"
+    assert reports["User Repurchase Analysis"]["table_name"] == "ads.ads_user_repurchase"
 
 
 # ---------------------------------------------------------------- 解析
@@ -122,9 +122,9 @@ def test_ddl_change_full_approve_applies(client):
     detail = r.json()
     event = detail["event"]
     assert event["status"] == "pending" and event["change_type"] == "ddl_change"
-    # 影响面:经营日报等 3 张报表 + 2 个系统 + 下游表(dwd/dws/ads日报/ads复购 等)
-    assert {x["name"] for x in detail["impacted_reports"]} == {"经营日报", "财务收入月报", "用户复购分析"}
-    assert {x["name"] for x in detail["impacted_systems"]} == {"BI 平台", "财务系统"}
+    # 影响面:Daily Operations Report 等 3 张报表 + 2 个系统 + 下游表(dwd/dws/ads daily report/ads repurchase 等)
+    assert {x["name"] for x in detail["impacted_reports"]} == {"Daily Operations Report", "Monthly Revenue Report", "User Repurchase Analysis"}
+    assert {x["name"] for x in detail["impacted_systems"]} == {"BI Platform", "Finance System"}
     assert {"dwd.dwd_trade_order_detail", "dws.dws_trade_daily_summary",
             "ads.ads_trade_daily_report", "ads.ads_user_repurchase"} <= {
         x["name"] for x in detail["impacted_tables"]

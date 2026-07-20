@@ -75,9 +75,9 @@ export const LAYER_COLORS: Record<TableLayer, string> = {
 }
 
 export const ROLE_NAMES: Record<ApproverRole, string> = {
-  report_owner: '报表负责人',
-  system_owner: '系统负责人',
-  table_owner: '中间表负责人',
+  report_owner: 'Report Owner',
+  system_owner: 'System Owner',
+  table_owner: 'Table Owner',
 }
 
 export const CHANGE_TYPE_NAMES = {

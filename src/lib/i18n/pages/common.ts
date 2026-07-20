@@ -43,7 +43,7 @@ export const zh: Record<string, string> = {
   'common.status.paused': '已暂停',
   // ---------- 审批角色 ----------
   'common.role.report_owner': '报表负责人',
-  'common.role.system_owner': '系统负责人',
+  'common.role.system_owner': 'System Owner',
   'common.role.table_owner': '中间表负责人',
   // ---------- 数仓分层 ----------
   'common.layer.ods': '贴源层',
