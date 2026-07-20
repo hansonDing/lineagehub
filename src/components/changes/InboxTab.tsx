@@ -11,7 +11,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { ApprovalDecision, ChangeType } from '@/lib/api'
 import { decideApproval, getChange, listApprovals } from '@/lib/api'
-import { CHANGE_TYPE_NAMES, formatChangeId, formatDateTime, relativeTime } from '@/lib/format'
+import { formatChangeId, formatDateTime, relativeTime } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ChangeTypeBadge, StatusBadge } from '@/components/common/StatusBadge'
@@ -45,10 +46,22 @@ import {
 type Scope = 'mine' | 'done' | 'all'
 type SortKey = 'latest' | 'impact'
 
-const SCOPE_META: Record<Scope, { label: string; emptyTitle: string; emptyDesc: string }> = {
-  mine: { label: '待我审批', emptyTitle: '没有待处理的审批', emptyDesc: '所有变更都已处理完毕' },
-  done: { label: '我已处理', emptyTitle: '还没有已处理的审批', emptyDesc: '处理过的审批会出现在这里' },
-  all: { label: '全部', emptyTitle: '没有相关审批', emptyDesc: '与你相关的审批任务会出现在这里' },
+const SCOPE_META: Record<Scope, { labelKey: string; emptyTitleKey: string; emptyDescKey: string }> = {
+  mine: {
+    labelKey: 'changes.inbox.scope.mine',
+    emptyTitleKey: 'changes.inbox.empty.mine.title',
+    emptyDescKey: 'changes.inbox.empty.mine.desc',
+  },
+  done: {
+    labelKey: 'changes.inbox.scope.done',
+    emptyTitleKey: 'changes.inbox.empty.done.title',
+    emptyDescKey: 'changes.inbox.empty.done.desc',
+  },
+  all: {
+    labelKey: 'changes.inbox.scope.all',
+    emptyTitleKey: 'changes.inbox.empty.all.title',
+    emptyDescKey: 'changes.inbox.empty.all.desc',
+  },
 }
 
 function impactTotal(detail: ChangeDetailReal | undefined): number {
@@ -71,6 +84,7 @@ function DecisionConfirm({
   onConfirm: () => void
   children: React.ReactNode
 }) {
+  const { t } = useT()
   const [open, setOpen] = useState(false)
   const approve = decision === 'approved'
   return (
@@ -78,18 +92,18 @@ function DecisionConfirm({
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align="end" className="w-64 border-slate-200 bg-white">
         <p className="text-[13px] font-semibold text-slate-900">
-          {approve ? '确认通过该变更?' : '确认驳回该变更?'}
+          {approve ? t('changes.inbox.confirm.approveTitle') : t('changes.inbox.confirm.rejectTitle')}
         </p>
         <p className="mt-1 text-xs text-slate-500">
           {approve
             ? reportCount > 0
-              ? `影响 ${reportCount} 个报表`
-              : '通过后继续等待其他审批人'
-            : '驳回后其余待审批任务将关闭'}
+              ? t('changes.inbox.confirm.impactReports', { count: reportCount })
+              : t('changes.inbox.confirm.approveWait')
+            : t('changes.inbox.confirm.rejectNote')}
         </p>
         <div className="mt-3 flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-            取消
+            {t('common.button.cancel')}
           </Button>
           <Button
             variant={approve ? 'approve' : 'danger'}
@@ -99,7 +113,7 @@ function DecisionConfirm({
               onConfirm()
             }}
           >
-            确认{approve ? '通过' : '驳回'}
+            {approve ? t('changes.inbox.confirm.approveButton') : t('changes.inbox.confirm.rejectButton')}
           </Button>
         </div>
       </PopoverContent>
@@ -140,11 +154,12 @@ function ApprovalCard({
   onRetryDecision: () => void
   onCommentChange: (value: string) => void
 }) {
+  const { t } = useT()
   const event = item.change_event
   const type: ChangeType = event?.change_type ?? 'ddl_change'
   const title = detail
-    ? changeTitle(type, event?.object_name ?? item.target_name, detail.diff)
-    : `${event?.object_name ?? item.target_name} ${CHANGE_TYPE_NAMES[type]}`
+    ? changeTitle(t, type, event?.object_name ?? item.target_name, detail.diff)
+    : `${event?.object_name ?? item.target_name} ${t(`common.changeType.${type}`)}`
   const isPending = item.status === 'pending'
   const diffEmpty = detail ? isDiffEmpty(detail.diff) : false
 
@@ -189,16 +204,16 @@ function ApprovalCard({
           />
         ) : detailFailed ? (
           <span className="flex items-center gap-2 text-xs text-danger">
-            影响信息加载失败
+            {t('changes.inbox.impact.loadFailed')}
             <button type="button" onClick={onRetryDetail} className="text-primary-600 hover:underline">
-              重试
+              {t('common.button.retry')}
             </button>
           </span>
         ) : (
           <span className="h-4 w-48 animate-pulse-soft rounded bg-slate-100" />
         )}
         <span className="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-slate-500">
-          我的角色
+          {t('changes.inbox.myRole')}
           <RoleBadge role={item.approver_role} />
         </span>
       </div>
@@ -216,11 +231,11 @@ function ApprovalCard({
             <div className="space-y-4 border-t border-slate-100 p-4">
               {/* 变更差异 */}
               <section>
-                <h4 className="mb-2 text-xs font-medium text-slate-500">变更差异</h4>
+                <h4 className="mb-2 text-xs font-medium text-slate-500">{t('changes.diff.title')}</h4>
                 {detail ? (
                   diffEmpty ? (
                     <p className="rounded-md bg-info-light px-3 py-2 text-xs text-info">
-                      结构化差异为空,可在变更事件详情中查看全文对比
+                      {t('changes.inbox.diff.empty')}
                     </p>
                   ) : (
                     <ChangeDiffView type={type} diff={detail.diff} />
@@ -232,7 +247,7 @@ function ApprovalCard({
 
               {/* 全部审批人进度 */}
               <section>
-                <h4 className="mb-2 text-xs font-medium text-slate-500">全部审批人</h4>
+                <h4 className="mb-2 text-xs font-medium text-slate-500">{t('changes.inbox.approvers.title')}</h4>
                 {detail ? (
                   <>
                     <div className="mb-2 flex -space-x-1.5">
@@ -257,11 +272,17 @@ function ApprovalCard({
                                     : 'text-pending',
                               )}
                             >
-                              {a.status === 'approved' ? '已通过' : a.status === 'rejected' ? '已驳回' : '待审批'}
+                              {a.status === 'approved'
+                                ? t('common.status.approved')
+                                : a.status === 'rejected'
+                                  ? t('common.status.rejected')
+                                  : t('common.status.pending')}
                             </span>
                           </span>
                           {a.comment && (
-                            <span className="truncate text-xs text-slate-400">「{a.comment}」</span>
+                            <span className="truncate text-xs text-slate-400">
+                              {t('changes.comment.quote', { comment: a.comment })}
+                            </span>
                           )}
                           <span className="ml-auto shrink-0 font-mono text-[11px] text-slate-400">
                             {a.target_name}
@@ -287,14 +308,14 @@ function ApprovalCard({
                         onClick={onRetryDecision}
                         className="shrink-0 font-medium text-primary-600 hover:underline"
                       >
-                        重试
+                        {t('common.button.retry')}
                       </button>
                     </div>
                   )}
                   <textarea
                     value={comment}
                     onChange={(e) => onCommentChange(e.target.value)}
-                    placeholder="审批意见(驳回时必填)…"
+                    placeholder={t('changes.inbox.comment.placeholder')}
                     disabled={submitting || !!morph}
                     className={cn(
                       'h-16 w-full resize-none rounded-md border bg-white px-2.5 py-2 text-[13px] outline-none transition-colors duration-120',
@@ -303,7 +324,7 @@ function ApprovalCard({
                     )}
                   />
                   {commentError && (
-                    <p className="mt-1 text-xs text-danger">驳回时必须填写审批意见</p>
+                    <p className="mt-1 text-xs text-danger">{t('changes.inbox.comment.required')}</p>
                   )}
                   <div className="mt-2 flex h-8 items-center justify-end gap-2">
                     {morph ? (
@@ -321,7 +342,7 @@ function ApprovalCard({
                         ) : (
                           <X className="size-3.5 text-white" />
                         )}
-                        {morph === 'approved' ? '已通过' : '已驳回'}
+                        {morph === 'approved' ? t('common.status.approved') : t('common.status.rejected')}
                       </motion.span>
                     ) : (
                       <>
@@ -331,7 +352,7 @@ function ApprovalCard({
                           onConfirm={() => onDecide('rejected')}
                         >
                           <Button variant="danger" size="sm" disabled={submitting}>
-                            驳回
+                            {t('common.button.reject')}
                           </Button>
                         </DecisionConfirm>
                         <DecisionConfirm
@@ -340,7 +361,7 @@ function ApprovalCard({
                           onConfirm={() => onDecide('approved')}
                         >
                           <Button variant="approve" size="sm" loading={submitting}>
-                            通过
+                            {t('common.button.approve')}
                           </Button>
                         </DecisionConfirm>
                       </>
@@ -350,9 +371,12 @@ function ApprovalCard({
               ) : (
                 <div className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
                   <ApprovalStateIcon status={item.status} />
-                  我已于 {relativeTime(item.decided_at)}{' '}
-                  {item.status === 'approved' ? '通过' : '驳回'}该审批
-                  {item.comment && <span className="text-slate-400">「{item.comment}」</span>}
+                  {item.status === 'approved'
+                    ? t('changes.inbox.decided.approved', { time: relativeTime(item.decided_at) })
+                    : t('changes.inbox.decided.rejected', { time: relativeTime(item.decided_at) })}
+                  {item.comment && (
+                    <span className="text-slate-400">{t('changes.comment.quote', { comment: item.comment })}</span>
+                  )}
                 </div>
               )}
             </div>
@@ -366,6 +390,7 @@ function ApprovalCard({
 // ---------- 收件箱 Tab ----------
 
 export function InboxTab() {
+  const { t } = useT()
   const { user } = useUser()
   const [scope, setScope] = useState<Scope>('mine')
   const [typeFilter, setTypeFilter] = useState<'all' | ChangeType>('all')
@@ -523,15 +548,18 @@ export function InboxTab() {
               })
               if (decision === 'approved') {
                 if (event.status === 'approved') {
-                  toast.success('全员已通过,变更已生效', formatChangeId(event.id))
+                  toast.success(t('changes.inbox.toast.allApproved'), formatChangeId(event.id))
                 } else {
                   toast.success(
-                    `已通过 ${formatChangeId(item.change_event_id)}`,
-                    `剩余 ${remaining} 人待审批`,
+                    t('changes.inbox.toast.approved', { id: formatChangeId(item.change_event_id) }),
+                    t('changes.inbox.toast.remaining', { count: remaining }),
                   )
                 }
               } else {
-                toast.info(`已驳回 ${formatChangeId(item.change_event_id)}`, '其余待审批任务已关闭')
+                toast.info(
+                  t('changes.inbox.toast.rejected', { id: formatChangeId(item.change_event_id) }),
+                  t('changes.inbox.toast.rejectedDesc'),
+                )
               }
               void load(true)
             }, 300),
@@ -540,7 +568,7 @@ export function InboxTab() {
       )
     } catch (e) {
       setActionErrors((prev) =>
-        new Map(prev).set(item.id, e instanceof Error ? e.message : '操作失败,请重试'),
+        new Map(prev).set(item.id, e instanceof Error ? e.message : t('changes.inbox.toast.actionFailed')),
       )
     } finally {
       setSubmitting((prev) => {
@@ -551,7 +579,10 @@ export function InboxTab() {
     }
   }
 
-  const scopeMeta = SCOPE_META[scope]
+  const scopeMeta = {
+    emptyTitle: t(SCOPE_META[scope].emptyTitleKey),
+    emptyDesc: t(SCOPE_META[scope].emptyDescKey),
+  }
 
   return (
     <div>
@@ -570,7 +601,7 @@ export function InboxTab() {
                   : 'border-slate-200 bg-white text-slate-500 hover:text-slate-900',
               )}
             >
-              {SCOPE_META[key].label}
+              {t(SCOPE_META[key].labelKey)}
               {key === 'mine' && mineCount !== null && mineCount > 0 && (
                 <span className="rounded bg-pending px-1 text-[11px] leading-4 text-white">
                   {mineCount}
@@ -585,9 +616,9 @@ export function InboxTab() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">全部类型</SelectItem>
-              <SelectItem value="ddl_change">DDL 变更</SelectItem>
-              <SelectItem value="sql_change">SQL 变更</SelectItem>
+              <SelectItem value="all">{t('changes.filter.allTypes')}</SelectItem>
+              <SelectItem value="ddl_change">{t('common.changeType.ddl_change')}</SelectItem>
+              <SelectItem value="sql_change">{t('common.changeType.sql_change')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
@@ -595,8 +626,8 @@ export function InboxTab() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="latest">最新优先</SelectItem>
-              <SelectItem value="impact">影响面最大优先</SelectItem>
+              <SelectItem value="latest">{t('changes.inbox.sort.latest')}</SelectItem>
+              <SelectItem value="impact">{t('changes.inbox.sort.impact')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -612,17 +643,17 @@ export function InboxTab() {
       ) : error ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-16 text-xs text-danger">
           <AlertCircle className="size-3.5" />
-          审批列表加载失败
+          {t('changes.inbox.loadFailed')}
           <button type="button" onClick={() => void load()} className="text-primary-600 hover:underline">
-            重试
+            {t('common.button.retry')}
           </button>
         </div>
       ) : visible.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white">
           <EmptyState
             image="/empty-approval.svg"
-            title={typeFilter !== 'all' ? '该类型下没有审批' : scopeMeta.emptyTitle}
-            description={typeFilter !== 'all' ? '切换类型筛选查看其他审批' : scopeMeta.emptyDesc}
+            title={typeFilter !== 'all' ? t('changes.inbox.empty.filtered.title') : scopeMeta.emptyTitle}
+            description={typeFilter !== 'all' ? t('changes.inbox.empty.filtered.desc') : scopeMeta.emptyDesc}
           />
         </div>
       ) : (

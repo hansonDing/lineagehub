@@ -4,6 +4,7 @@
 
 import type { ReactNode } from 'react'
 import { useState } from 'react'
+import { useT } from '@/lib/i18n'
 import { Modal } from '@/components/common/Modal'
 import { Button } from '@/components/ui/button'
 import { TextInput } from './controls'
@@ -28,6 +29,7 @@ export function ConfirmDeleteModal({
   onConfirm,
   loading,
 }: ConfirmDeleteModalProps) {
+  const { t } = useT()
   const [typed, setTyped] = useState('')
   // 打开时重置输入(渲染期派生重置,避免 effect 级联渲染)
   const [prevOpen, setPrevOpen] = useState(open)
@@ -48,10 +50,10 @@ export function ConfirmDeleteModal({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            取消
+            {t('common.button.cancel')}
           </Button>
           <Button variant="danger" onClick={onConfirm} disabled={!matched} loading={loading}>
-            确认删除
+            {t('metadata.delete.confirmButton')}
           </Button>
         </>
       }
@@ -60,7 +62,8 @@ export function ConfirmDeleteModal({
       {needConfirm && (
         <div className="mt-4">
           <p className="mb-1.5 text-xs text-slate-500">
-            请输入 <span className="font-medium text-slate-900">{confirmName}</span> 以确认删除
+            {t('metadata.delete.typePre')} <span className="font-medium text-slate-900">{confirmName}</span>{' '}
+            {t('metadata.delete.typePost')}
           </p>
           <TextInput
             value={typed}

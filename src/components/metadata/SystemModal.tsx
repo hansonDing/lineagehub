@@ -8,16 +8,17 @@ import { ArrowLeftRight, Send, Server } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { System, SystemKind } from '@/lib/api'
 import { createSystem, updateSystem } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 import { Modal } from '@/components/common/Modal'
 import { toast } from '@/components/common/Toast'
 import { Button } from '@/components/ui/button'
 import { FieldError, FieldHint, FieldLabel, TextArea, TextInput } from './controls'
 import { systemCode } from './systemCode'
 
-const KIND_OPTIONS: { value: SystemKind; label: string; desc: string; icon: typeof Server }[] = [
-  { value: 'source', label: '源系统', desc: '数据的来源', icon: Server },
-  { value: 'target', label: '目标系统', desc: '报表的去向', icon: Send },
-  { value: 'both', label: '双向', desc: '既作来源也作目标', icon: ArrowLeftRight },
+const KIND_OPTIONS: { value: SystemKind; labelKey: string; descKey: string; icon: typeof Server }[] = [
+  { value: 'source', labelKey: 'metadata.systems.kind.source', descKey: 'metadata.systems.kind.sourceDesc', icon: Server },
+  { value: 'target', labelKey: 'metadata.systems.kind.target', descKey: 'metadata.systems.kind.targetDesc', icon: Send },
+  { value: 'both', labelKey: 'metadata.systems.kind.both', descKey: 'metadata.systems.kind.bothDesc', icon: ArrowLeftRight },
 ]
 
 export interface SystemModalProps {
@@ -29,6 +30,7 @@ export interface SystemModalProps {
 }
 
 export function SystemModal({ open, onClose, editing, onSaved }: SystemModalProps) {
+  const { t } = useT()
   const [name, setName] = useState('')
   const [kind, setKind] = useState<SystemKind>('source')
   const [owner, setOwner] = useState('')
@@ -49,8 +51,8 @@ export function SystemModal({ open, onClose, editing, onSaved }: SystemModalProp
 
   const handleSave = async () => {
     const next: { name?: string; owner?: string } = {}
-    if (!name.trim()) next.name = '请填写系统名称'
-    if (!owner.trim()) next.owner = '请填写负责人'
+    if (!name.trim()) next.name = t('metadata.systems.modal.errorName')
+    if (!owner.trim()) next.owner = t('metadata.field.errorOwner')
     setErrors(next)
     if (next.name || next.owner) return
     setSaving(true)
@@ -67,11 +69,14 @@ export function SystemModal({ open, onClose, editing, onSaved }: SystemModalProp
       } else {
         await createSystem(payload)
       }
-      toast.success('系统已保存', name.trim())
+      toast.success(t('metadata.systems.toast.saved'), name.trim())
       onSaved()
       onClose()
     } catch (err) {
-      toast.error('保存失败', err instanceof Error ? err.message : '请刷新后重试')
+      toast.error(
+        t('metadata.toast.saveFailed'),
+        err instanceof Error ? err.message : t('metadata.toast.retryLater'),
+      )
     } finally {
       setSaving(false)
     }
@@ -81,47 +86,47 @@ export function SystemModal({ open, onClose, editing, onSaved }: SystemModalProp
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? `编辑系统 · ${editing.name}` : '新增业务系统'}
+      title={editing ? t('metadata.systems.modal.editTitle', { name: editing.name }) : t('metadata.systems.modal.addTitle')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            取消
+            {t('common.button.cancel')}
           </Button>
           <Button onClick={() => void handleSave()} loading={saving}>
-            {saving ? '保存中…' : '保存'}
+            {saving ? t('metadata.button.saving') : t('common.button.save')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <div>
-          <FieldLabel required>系统名称</FieldLabel>
+          <FieldLabel required>{t('metadata.systems.col.name')}</FieldLabel>
           <TextInput
             value={name}
             onChange={(e) => {
               setName(e.target.value)
               setErrors((p) => ({ ...p, name: undefined }))
             }}
-            placeholder="订单中心"
+            placeholder={t('metadata.systems.modal.namePlaceholder')}
             error={!!errors.name}
           />
           <FieldError>{errors.name}</FieldError>
         </div>
 
         <div>
-          <FieldLabel>英文代号</FieldLabel>
+          <FieldLabel>{t('metadata.systems.modal.code')}</FieldLabel>
           <TextInput
             value={systemCode(name.trim())}
-            placeholder="保存后自动生成"
+            placeholder={t('metadata.systems.modal.codePlaceholder')}
             mono
             disabled
             readOnly
           />
-          <FieldHint>根据系统名称自动派生,用于血缘与日志标识</FieldHint>
+          <FieldHint>{t('metadata.systems.modal.codeHint')}</FieldHint>
         </div>
 
         <div>
-          <FieldLabel required>系统类型</FieldLabel>
+          <FieldLabel required>{t('metadata.systems.modal.kind')}</FieldLabel>
           <div className="grid grid-cols-3 gap-2">
             {KIND_OPTIONS.map((opt) => {
               const active = kind === opt.value
@@ -139,9 +144,9 @@ export function SystemModal({ open, onClose, editing, onSaved }: SystemModalProp
                   <Icon className={cn('size-4 shrink-0', active ? 'text-primary-700' : 'text-slate-400')} />
                   <span className="min-w-0">
                     <span className={cn('block text-[13px] font-medium', active ? 'text-primary-700' : 'text-slate-900')}>
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </span>
-                    <span className="block truncate text-[11px] text-slate-400">{opt.desc}</span>
+                    <span className="block truncate text-[11px] text-slate-400">{t(opt.descKey)}</span>
                   </span>
                 </button>
               )
@@ -150,27 +155,27 @@ export function SystemModal({ open, onClose, editing, onSaved }: SystemModalProp
         </div>
 
         <div>
-          <FieldLabel required>负责人</FieldLabel>
+          <FieldLabel required>{t('metadata.field.owner')}</FieldLabel>
           <TextInput
             value={owner}
             onChange={(e) => {
               setOwner(e.target.value)
               setErrors((p) => ({ ...p, owner: undefined }))
             }}
-            placeholder="赵六"
+            placeholder={t('metadata.systems.modal.ownerPlaceholder')}
             error={!!errors.owner}
           />
           <FieldError>{errors.owner}</FieldError>
         </div>
 
         <div>
-          <FieldLabel>联系方式</FieldLabel>
-          <TextInput value={contact} onChange={(e) => setContact(e.target.value)} placeholder="邮箱或 IM" mono />
+          <FieldLabel>{t('metadata.field.contact')}</FieldLabel>
+          <TextInput value={contact} onChange={(e) => setContact(e.target.value)} placeholder={t('metadata.field.contactPlaceholder')} mono />
         </div>
 
         <div>
-          <FieldLabel>描述</FieldLabel>
-          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="交易订单业务库" />
+          <FieldLabel>{t('metadata.field.description')}</FieldLabel>
+          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder={t('metadata.systems.modal.descPlaceholder')} />
         </div>
       </div>
     </Modal>

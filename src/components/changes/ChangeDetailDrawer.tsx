@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import type { ReportListItem, System, TableListItem } from '@/lib/api'
 import { getChange, listReports, listSystems, listTables } from '@/lib/api'
 import { formatChangeId, formatDateTime, relativeTime } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import { CodeEditor } from '@/components/common/CodeEditor'
 import { Drawer } from '@/components/common/Drawer'
@@ -52,6 +53,7 @@ export function ChangeDetailDrawer({
   changeId: number | null
   onClose: () => void
 }) {
+  const { t } = useT()
   const [detail, setDetail] = useState<ChangeDetailReal | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -122,18 +124,23 @@ export function ChangeDetailDrawer({
     event.status === 'pending' ? (
       <div className="flex w-full items-center justify-start gap-2 text-xs text-info">
         <Info className="size-3.5 shrink-0" />
-        全员通过后变更自动生效(
-        {event.change_type === 'ddl_change' ? 'DDL 替换表字段' : 'SQL 更新脚本与血缘边'})
+        {t('changes.drawer.footer.pending', {
+          effect: t(
+            event.change_type === 'ddl_change'
+              ? 'changes.drawer.footer.effectDdl'
+              : 'changes.drawer.footer.effectSql',
+          ),
+        })}
       </div>
     ) : event.status === 'approved' ? (
       <div className="flex w-full items-center justify-start gap-2 text-xs text-success">
         <CheckCircle2 className="size-3.5 shrink-0" />
-        变更已于 {formatDateTime(event.resolved_at)} 生效
+        {t('changes.drawer.footer.approved', { time: formatDateTime(event.resolved_at) })}
       </div>
     ) : (
       <div className="flex w-full items-center justify-start gap-2 text-xs text-danger">
         <XCircle className="size-3.5 shrink-0" />
-        变更已于 {formatDateTime(event.resolved_at)} 被驳回
+        {t('changes.drawer.footer.rejected', { time: formatDateTime(event.resolved_at) })}
       </div>
     )
   ) : undefined
@@ -160,13 +167,13 @@ export function ChangeDetailDrawer({
       ) : error ? (
         <div className="flex items-center justify-center gap-2 py-20 text-xs text-danger">
           <AlertCircle className="size-3.5" />
-          详情加载失败
+          {t('changes.drawer.loadFailed')}
           <button
             type="button"
             onClick={() => changeId !== null && void load(changeId)}
             className="text-primary-600 hover:underline"
           >
-            重试
+            {t('common.button.retry')}
           </button>
         </div>
       ) : detail && event ? (
@@ -174,31 +181,31 @@ export function ChangeDetailDrawer({
           {/* 副行:标题 + 发起人 / 时间 / 变更对象 */}
           <div className="mb-4">
             <p className="text-sm font-semibold text-slate-900">
-              {changeTitle(event.change_type, event.object_name, detail.diff)}
+              {changeTitle(t, event.change_type, event.object_name, detail.diff)}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              {event.submitted_by} 发起
+              {t('changes.events.submittedBy', { name: event.submitted_by })}
               {' · '}
               <span title={formatDateTime(event.created_at)}>{relativeTime(event.created_at)}</span>
               {' · '}
-              变更对象 <span className="font-mono">{event.object_name}</span>
+              {t('changes.drawer.object')} <span className="font-mono">{event.object_name}</span>
             </p>
           </div>
 
           {/* 状态步进器 */}
-          <SectionShell index={0} title="状态">
+          <SectionShell index={0} title={t('changes.drawer.section.status')}>
             <StatusStepper status={event.status} />
           </SectionShell>
 
           {/* 变更内容 */}
-          <SectionShell index={1} title="变更内容">
+          <SectionShell index={1} title={t('changes.drawer.section.content')}>
             <Tabs
               className="mb-3"
               items={[
-                { key: 'diff', label: '差异 diff' },
+                { key: 'diff', label: t('changes.drawer.tab.diff') },
                 {
                   key: 'full',
-                  label: event.change_type === 'ddl_change' ? '新 DDL 全文' : '新 SQL 全文',
+                  label: t(event.change_type === 'ddl_change' ? 'changes.drawer.tab.fullDdl' : 'changes.drawer.tab.fullSql'),
                 },
               ]}
               value={contentTab}
@@ -217,9 +224,9 @@ export function ChangeDetailDrawer({
           </SectionShell>
 
           {/* 影响分析 */}
-          <SectionShell index={2} title={`受影响报表 ${detail.impacted_reports.length}`}>
+          <SectionShell index={2} title={t('changes.impact.reportsWithCount', { count: detail.impacted_reports.length })}>
             {detail.impacted_reports.length === 0 ? (
-              <p className="text-xs text-slate-400">无受影响报表</p>
+              <p className="text-xs text-slate-400">{t('changes.drawer.empty.reports')}</p>
             ) : (
               <ul className="space-y-1.5">
                 {detail.impacted_reports.map((r) => {
@@ -247,9 +254,9 @@ export function ChangeDetailDrawer({
             )}
           </SectionShell>
 
-          <SectionShell index={3} title={`受影响下游系统 ${detail.impacted_systems.length}`}>
+          <SectionShell index={3} title={t('changes.impact.systemsWithCount', { count: detail.impacted_systems.length })}>
             {detail.impacted_systems.length === 0 ? (
-              <p className="text-xs text-slate-400">无受影响下游系统</p>
+              <p className="text-xs text-slate-400">{t('changes.drawer.empty.systems')}</p>
             ) : (
               <ul className="space-y-1.5">
                 {detail.impacted_systems.map((s) => {
@@ -271,9 +278,9 @@ export function ChangeDetailDrawer({
             )}
           </SectionShell>
 
-          <SectionShell index={4} title={`受影响中间表 ${detail.impacted_tables.length}`}>
+          <SectionShell index={4} title={t('changes.impact.tablesWithCount', { count: detail.impacted_tables.length })}>
             {detail.impacted_tables.length === 0 ? (
-              <p className="text-xs text-slate-400">无受影响中间表</p>
+              <p className="text-xs text-slate-400">{t('changes.drawer.empty.tables')}</p>
             ) : (
               <ul className="space-y-1.5">
                 {detail.impacted_tables.map((t) => {
@@ -296,17 +303,17 @@ export function ChangeDetailDrawer({
           </SectionShell>
 
           {/* 审批任务 */}
-          <SectionShell index={5} title={`审批任务 ${detail.approvals.length}`}>
+          <SectionShell index={5} title={t('changes.drawer.approvals.title', { count: detail.approvals.length })}>
             <div className="overflow-hidden rounded-md border border-slate-200">
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="h-8 border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                    <th className="px-3">审批人</th>
-                    <th className="px-3">角色</th>
-                    <th className="px-3">关联对象</th>
-                    <th className="px-3">状态</th>
-                    <th className="px-3">评论</th>
-                    <th className="px-3">决定时间</th>
+                    <th className="px-3">{t('changes.drawer.approvals.col.approver')}</th>
+                    <th className="px-3">{t('changes.drawer.approvals.col.role')}</th>
+                    <th className="px-3">{t('changes.drawer.approvals.col.target')}</th>
+                    <th className="px-3">{t('changes.drawer.approvals.col.status')}</th>
+                    <th className="px-3">{t('changes.drawer.approvals.col.comment')}</th>
+                    <th className="px-3">{t('changes.drawer.approvals.col.decidedAt')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -336,12 +343,16 @@ export function ChangeDetailDrawer({
                                   : 'text-pending',
                             )}
                           >
-                            {a.status === 'approved' ? '已通过' : a.status === 'rejected' ? '已驳回' : '待审批'}
+                            {a.status === 'approved'
+                              ? t('common.status.approved')
+                              : a.status === 'rejected'
+                                ? t('common.status.rejected')
+                                : t('common.status.pending')}
                           </span>
                         </span>
                       </td>
                       <td className="max-w-[120px] truncate px-3 text-xs text-slate-500" title={a.comment ?? undefined}>
-                        {a.comment ? `「${a.comment}」` : '—'}
+                        {a.comment ? t('changes.comment.quote', { comment: a.comment }) : '—'}
                       </td>
                       <td className="px-3 text-xs text-slate-500">
                         <span title={formatDateTime(a.decided_at)}>{relativeTime(a.decided_at)}</span>

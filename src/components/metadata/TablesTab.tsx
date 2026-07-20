@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import type { GraphResponse, SqlScript, System, TableDetail, TableLayer, TableListItem } from '@/lib/api'
 import { getTable, updateTable } from '@/lib/api'
 import { LAYER_COLORS, formatDateTime, relativeTime } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import { Drawer } from '@/components/common/Drawer'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -65,6 +66,7 @@ export function TablesTab({
   deepLink,
   deepLinkNonce,
 }: TablesTabProps) {
+  const { t } = useT()
   const [layer, setLayer] = useState<'all' | TableLayer>('all')
   const [systemFilter, setSystemFilter] = useState<'all' | 'none' | number>('all')
   const [keyword, setKeyword] = useState('')
@@ -112,11 +114,13 @@ export function TablesTab({
       const script = scripts.find((s) => s.name === e.script_name)
       map.set(
         target,
-        script ? `脚本 ${script.name} · ${script.created_at.slice(0, 10)}` : `脚本 ${e.script_name}`,
+        script
+          ? t('metadata.tables.register.script', { name: script.name, date: script.created_at.slice(0, 10) })
+          : t('metadata.tables.register.scriptName', { name: e.script_name }),
       )
     }
     return map
-  }, [overview, nodeName, scripts])
+  }, [overview, nodeName, scripts, t])
 
   // ---------- 筛选 ----------
   const layerCounts = useMemo(() => {
@@ -158,7 +162,7 @@ export function TablesTab({
         const detail = await getTable(table.id)
         setDetails((prev) => new Map(prev).set(table.id, detail))
       } catch {
-        toast.error('加载失败', `无法获取 ${table.name} 的字段列表`)
+        toast.error(t('metadata.toast.loadFailed'), t('metadata.tables.toast.columnsFailed', { name: table.name }))
       } finally {
         setDetailLoading((prev) => {
           const s = new Set(prev)
@@ -179,7 +183,7 @@ export function TablesTab({
 
   // ---------- 分层 chips ----------
   const chips: { key: 'all' | TableLayer; label: string; color: string; count: number }[] = [
-    { key: 'all', label: '全部', color: '#64748B', count: tables.length },
+    { key: 'all', label: t('metadata.tables.filter.all'), color: '#64748B', count: tables.length },
     ...LAYERS.map((l) => ({
       key: l as 'all' | TableLayer,
       label: l.toUpperCase(),
@@ -222,17 +226,17 @@ export function TablesTab({
           onChange={(e) => setSystemFilter(e.target.value === 'all' || e.target.value === 'none' ? e.target.value : Number(e.target.value))}
           className="w-36"
         >
-          <option value="all">全部来源</option>
+          <option value="all">{t('metadata.tables.filter.allSources')}</option>
           {systems.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
             </option>
           ))}
-          <option value="none">未配置</option>
+          <option value="none">{t('metadata.tables.filter.unconfigured')}</option>
         </SelectInput>
         <div className="ml-auto flex items-center gap-2">
-          <SearchInput value={keyword} onChange={setKeyword} placeholder="搜索表名…" className="w-52" />
-          <span className="hidden text-xs text-slate-400 2xl:inline">表由 SQL 解析自动注册,本页配置归属</span>
+          <SearchInput value={keyword} onChange={setKeyword} placeholder={t('metadata.tables.searchPlaceholder')} className="w-52" />
+          <span className="hidden text-xs text-slate-400 2xl:inline">{t('metadata.tables.hint')}</span>
         </div>
       </div>
 
@@ -242,14 +246,14 @@ export function TablesTab({
           <AlertTriangle className="size-3.5 shrink-0 text-pending" />
           <span className="text-xs text-slate-700">
             <span className="font-mono font-medium text-pending">{unconfigured.length}</span>{' '}
-            张表未配置来源系统,变更时将无法通知上游负责人
+            {t('metadata.tables.guide.text')}
           </span>
           <button
             type="button"
             onClick={() => setSystemFilter('none')}
             className="ml-auto text-xs font-medium text-primary-600 hover:underline underline-offset-4"
           >
-            一键筛选未配置
+            {t('metadata.tables.guide.action')}
           </button>
         </div>
       )}
@@ -259,14 +263,14 @@ export function TablesTab({
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="h-9 border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-              <th className="w-10 px-3" aria-label="展开" />
-              <th className="px-3">表名</th>
-              <th className="w-40 px-3">来源系统</th>
-              <th className="w-36 px-3">负责人</th>
-              <th className="w-16 px-3">字段</th>
-              <th className="w-24 px-3">上游 / 下游</th>
-              <th className="w-24 px-3">更新时间</th>
-              <th className="w-24 px-3 text-right">操作</th>
+              <th className="w-10 px-3" aria-label={t('metadata.tables.expand')} />
+              <th className="px-3">{t('metadata.tables.col.name')}</th>
+              <th className="w-40 px-3">{t('metadata.tables.col.source')}</th>
+              <th className="w-36 px-3">{t('metadata.field.owner')}</th>
+              <th className="w-16 px-3">{t('metadata.tables.col.columns')}</th>
+              <th className="w-24 px-3">{t('metadata.tables.col.upDown')}</th>
+              <th className="w-24 px-3">{t('metadata.tables.col.updated')}</th>
+              <th className="w-24 px-3 text-right">{t('metadata.field.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -285,8 +289,8 @@ export function TablesTab({
                 <td colSpan={8}>
                   <EmptyState
                     image="/empty-table.svg"
-                    title={hasFilter ? '未找到匹配的表' : '还没有数仓表'}
-                    description={hasFilter ? '换个关键词,或检查筛选条件' : '提交 SQL 脚本后,解析引擎将自动注册表'}
+                    title={hasFilter ? t('metadata.tables.empty.title') : t('metadata.tables.empty.noneTitle')}
+                    description={hasFilter ? t('metadata.empty.filterDesc') : t('metadata.tables.empty.noneDesc')}
                     className="min-h-60"
                   />
                 </td>
@@ -325,7 +329,7 @@ export function TablesTab({
                             onClick={() => setConfigTarget(table)}
                             className="text-[13px] font-medium text-pending hover:underline underline-offset-4"
                           >
-                            + 配置来源
+                            {t('metadata.tables.configureSource')}
                           </button>
                         )}
                       </td>
@@ -362,12 +366,12 @@ export function TablesTab({
                       </td>
                       <td className="px-3" onClick={(e) => e.stopPropagation()}>
                         <span className="flex items-center justify-end gap-0.5">
-                          <Button variant="ghost" size="icon-sm" aria-label="配置" onClick={() => setConfigTarget(table)}>
+                          <Button variant="ghost" size="icon-sm" aria-label={t('metadata.tables.configure')} onClick={() => setConfigTarget(table)}>
                             <Pencil className="size-3.5" />
                           </Button>
                           <Link
                             to={`/lineage?table=${encodeURIComponent(table.name)}`}
-                            aria-label="查看血缘"
+                            aria-label={t('metadata.tables.viewLineage')}
                             className="inline-flex size-7 items-center justify-center rounded-[6px] text-slate-500 transition-colors duration-120 hover:bg-slate-100 hover:text-slate-900"
                           >
                             <Network className="size-3.5" />
@@ -406,8 +410,8 @@ export function TablesTab({
         </table>
         <div className="flex h-10 items-center justify-end border-t border-slate-200 px-3 text-xs text-slate-500">
           {hasFilter && filtered.length !== tables.length
-            ? `筛选出 ${filtered.length} 条 / 共 ${tables.length} 条`
-            : `共 ${filtered.length} 条`}
+            ? t('metadata.table.filteredTotal', { filtered: filtered.length, total: tables.length })
+            : t('common.table.total', { count: filtered.length })}
         </div>
       </div>
 
@@ -441,12 +445,13 @@ function ExpandedContent({
   upstreamNames: string[]
   downstreamNames: string[]
 }) {
+  const { t } = useT()
   const columns = detail?.columns ?? []
   return (
     <div className="grid grid-cols-12 gap-6 px-6 py-4">
       {/* 左 7 列:字段列表 */}
       <div className="col-span-12 xl:col-span-7">
-        <p className="mb-2 text-xs font-medium text-slate-500">字段列表</p>
+        <p className="mb-2 text-xs font-medium text-slate-500">{t('metadata.tables.expanded.columns')}</p>
         {detailLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -454,15 +459,15 @@ function ExpandedContent({
             ))}
           </div>
         ) : columns.length === 0 ? (
-          <p className="text-xs text-slate-400">暂无字段信息</p>
+          <p className="text-xs text-slate-400">{t('metadata.tables.expanded.noColumns')}</p>
         ) : (
           <div style={{ maxHeight: EXPAND_VISIBLE_ROWS * 28 }} className="overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="h-7 text-left text-[11px] font-medium text-slate-400">
-                  <th className="w-2/5 pr-3">字段名</th>
-                  <th className="w-1/4 pr-3">类型</th>
-                  <th>注释</th>
+                  <th className="w-2/5 pr-3">{t('metadata.tables.expanded.colName')}</th>
+                  <th className="w-1/4 pr-3">{t('metadata.tables.expanded.colType')}</th>
+                  <th>{t('metadata.tables.expanded.colComment')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -473,7 +478,7 @@ function ExpandedContent({
                         {col.name}
                         {isPartitionColumn(col.name, col.comment) && (
                           <span
-                            title="分区字段"
+                            title={t('metadata.tables.expanded.partition')}
                             className="rounded bg-slate-200/80 px-1 font-mono text-[10px] font-medium text-slate-500"
                           >
                             P
@@ -497,7 +502,7 @@ function ExpandedContent({
 
       {/* 右 5 列:血缘速览 */}
       <div className="col-span-12 xl:col-span-5">
-        <p className="mb-2 text-xs font-medium text-slate-500">血缘速览</p>
+        <p className="mb-2 text-xs font-medium text-slate-500">{t('metadata.tables.expanded.lineage')}</p>
         <div className="flex flex-wrap items-center gap-1.5">
           <TableChips names={upstreamNames} />
           <ArrowRight className="size-3 shrink-0 text-slate-400" />
@@ -511,7 +516,7 @@ function ExpandedContent({
           to={`/lineage?table=${encodeURIComponent(table.name)}`}
           className="mt-3 inline-block text-xs text-primary-600 hover:underline underline-offset-4"
         >
-          完整血缘 →
+          {t('metadata.tables.expanded.fullLineage')}
         </Link>
       </div>
     </div>
@@ -562,6 +567,7 @@ function TableConfigDrawer({
   onClose: () => void
   onSaved: (tableId: number) => void
 }) {
+  const { t } = useT()
   const [sourceSystemId, setSourceSystemId] = useState<'none' | number>('none')
   const [owner, setOwner] = useState('')
   const [description, setDescription] = useState('')
@@ -583,7 +589,7 @@ function TableConfigDrawer({
   const handleSave = async () => {
     if (!table) return
     if (!owner.trim()) {
-      setOwnerError('请填写负责人')
+      setOwnerError(t('metadata.field.errorOwner'))
       return
     }
     setSaving(true)
@@ -593,10 +599,13 @@ function TableConfigDrawer({
         owner: owner.trim(),
         description: description.trim(),
       })
-      toast.success('配置已保存', table.name)
+      toast.success(t('metadata.tables.toast.saved'), table.name)
       onSaved(table.id)
     } catch (err) {
-      toast.error('保存失败', err instanceof Error ? err.message : '请刷新后重试')
+      toast.error(
+        t('metadata.toast.saveFailed'),
+        err instanceof Error ? err.message : t('metadata.toast.retryLater'),
+      )
     } finally {
       setSaving(false)
     }
@@ -615,10 +624,10 @@ function TableConfigDrawer({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            取消
+            {t('common.button.cancel')}
           </Button>
           <Button onClick={() => void handleSave()} loading={saving}>
-            {saving ? '保存中…' : '保存配置'}
+            {saving ? t('metadata.button.saving') : t('metadata.tables.drawer.save')}
           </Button>
         </>
       }
@@ -626,7 +635,7 @@ function TableConfigDrawer({
       {table && (
         <div className="space-y-4">
           <div>
-            <FieldLabel>来源系统</FieldLabel>
+            <FieldLabel>{t('metadata.tables.col.source')}</FieldLabel>
             <div className="relative">
               <button
                 type="button"
@@ -639,7 +648,7 @@ function TableConfigDrawer({
                     {selectedSystem.name}
                   </>
                 ) : (
-                  <span className="text-slate-500">数仓内部加工(无来源)</span>
+                  <span className="text-slate-500">{t('metadata.tables.drawer.noSource')}</span>
                 )}
                 <ChevronRight className={cn('ml-auto size-3.5 rotate-90 text-slate-400 transition-transform', sysDropdownOpen && '-rotate-90')} />
               </button>
@@ -647,7 +656,7 @@ function TableConfigDrawer({
                 <>
                   <button
                     type="button"
-                    aria-label="关闭"
+                    aria-label={t('common.close')}
                     className="fixed inset-0 z-10 cursor-default"
                     onClick={() => setSysDropdownOpen(false)}
                   />
@@ -663,7 +672,7 @@ function TableConfigDrawer({
                         sourceSystemId === 'none' ? 'text-primary-700' : 'text-slate-500',
                       )}
                     >
-                      数仓内部加工(无来源)
+                      {t('metadata.tables.drawer.noSource')}
                     </button>
                     {systems.map((s) => (
                       <button
@@ -689,36 +698,36 @@ function TableConfigDrawer({
           </div>
 
           <div>
-            <FieldLabel required>负责人</FieldLabel>
+            <FieldLabel required>{t('metadata.field.owner')}</FieldLabel>
             <TextInput
               value={owner}
               onChange={(e) => {
                 setOwner(e.target.value)
                 setOwnerError('')
               }}
-              placeholder="张三"
+              placeholder={t('metadata.field.ownerPlaceholder')}
               error={!!ownerError}
             />
             <FieldError>{ownerError}</FieldError>
           </div>
 
           <div>
-            <FieldLabel>描述</FieldLabel>
+            <FieldLabel>{t('metadata.field.description')}</FieldLabel>
             <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </div>
 
           {/* 只读信息区 */}
           <div className="space-y-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
             <div className="flex justify-between">
-              <span>注册来源</span>
-              <span className="font-mono text-slate-700">{registerInfo ?? 'SQL 解析自动注册'}</span>
+              <span>{t('metadata.tables.drawer.registerSource')}</span>
+              <span className="font-mono text-slate-700">{registerInfo ?? t('metadata.tables.register.auto')}</span>
             </div>
             <div className="flex justify-between">
-              <span>字段数</span>
+              <span>{t('metadata.tables.drawer.fieldCount')}</span>
               <span className="font-mono text-slate-700">{fieldCount}</span>
             </div>
             <div className="flex justify-between">
-              <span>上游 / 下游</span>
+              <span>{t('metadata.tables.col.upDown')}</span>
               <span className="font-mono text-slate-700">
                 {upstreamCount} / {downstreamCount}
               </span>

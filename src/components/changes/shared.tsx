@@ -19,7 +19,7 @@ import {
 import { animate, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { ApproverRole, ChangeDiff, ChangeStatus, ColumnDiffEntry } from '@/lib/api'
-import { ROLE_NAMES } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 import { columnNewType, columnOldType } from './types'
 
 // ---------- 数字计数(400ms easeOut,仅首屏) ----------
@@ -43,8 +43,11 @@ export function CountUp({ value, duration = 0.4 }: { value: number; duration?: n
 
 // ---------- 角色徽标(主色浅底) ----------
 
+const KNOWN_ROLES: ApproverRole[] = ['report_owner', 'system_owner', 'table_owner']
+
 export function RoleBadge({ role, className }: { role: ApproverRole | string; className?: string }) {
-  const label = ROLE_NAMES[role as ApproverRole] ?? role
+  const { t } = useT()
+  const label = KNOWN_ROLES.includes(role as ApproverRole) ? t(`common.role.${role}`) : role
   return (
     <span
       className={cn(
@@ -61,22 +64,24 @@ export function RoleBadge({ role, className }: { role: ApproverRole | string; cl
 
 type DiffKind = 'added' | 'removed' | 'type_changed'
 
-const DIFF_KIND_META: Record<DiffKind, { label: string; className: string }> = {
-  added: { label: '新增', className: 'bg-success-light text-success' },
-  removed: { label: '删除', className: 'bg-danger-light text-danger' },
-  type_changed: { label: '类型变更', className: 'bg-pending-light text-pending' },
+const DIFF_KIND_META: Record<DiffKind, { labelKey: string; className: string }> = {
+  added: { labelKey: 'changes.diff.kind.added', className: 'bg-success-light text-success' },
+  removed: { labelKey: 'changes.diff.kind.removed', className: 'bg-danger-light text-danger' },
+  type_changed: { labelKey: 'changes.diff.kind.typeChanged', className: 'bg-pending-light text-pending' },
 }
 
 function DiffKindBadge({ kind }: { kind: DiffKind }) {
+  const { t } = useT()
   const meta = DIFF_KIND_META[kind]
   return (
     <span className={cn('inline-flex items-center rounded px-1.5 text-[11px] font-medium leading-4', meta.className)}>
-      {meta.label}
+      {t(meta.labelKey)}
     </span>
   )
 }
 
 export function FieldDiffTable({ diff }: { diff: ChangeDiff }) {
+  const { t } = useT()
   const rows: { entry: ColumnDiffEntry; kind: DiffKind }[] = [
     ...(diff.added ?? []).map((entry) => ({ entry, kind: 'added' as DiffKind })),
     ...(diff.removed ?? []).map((entry) => ({ entry, kind: 'removed' as DiffKind })),
@@ -88,9 +93,9 @@ export function FieldDiffTable({ diff }: { diff: ChangeDiff }) {
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="h-8 border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-            <th className="px-3">字段名</th>
-            <th className="px-3">变更类型</th>
-            <th className="px-3">变更前 → 变更后</th>
+            <th className="px-3">{t('changes.diff.col.name')}</th>
+            <th className="px-3">{t('changes.diff.col.type')}</th>
+            <th className="px-3">{t('changes.diff.col.beforeAfter')}</th>
           </tr>
         </thead>
         <tbody>
@@ -182,19 +187,21 @@ export function ImpactChips({
   tables: string[]
   className?: string
 }) {
+  const { t } = useT()
+  const sep = t('changes.impact.nameSep')
   const segments: { icon: typeof BarChart3; label: string; names: string[] }[] = [
-    { icon: BarChart3, label: '报表', names: reports },
-    { icon: Send, label: '下游系统', names: systems },
-    { icon: Table2, label: '中间表', names: tables },
+    { icon: BarChart3, label: t('changes.impact.reports'), names: reports },
+    { icon: Send, label: t('changes.impact.systems'), names: systems },
+    { icon: Table2, label: t('changes.impact.tables'), names: tables },
   ]
   return (
     <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500', className)}>
       {segments.map(({ icon: Icon, label, names }) => (
-        <span key={label} className="inline-flex items-center gap-1" title={names.join('、')}>
+        <span key={label} className="inline-flex items-center gap-1" title={names.join(sep)}>
           <Icon className="size-3.5 text-slate-400" />
           {label}×{names.length}
           {names.length > 0 && (
-            <span className="max-w-[220px] truncate text-slate-400">({names.join('、')})</span>
+            <span className="max-w-[220px] truncate text-slate-400">({names.join(sep)})</span>
           )}
         </span>
       ))}
@@ -205,13 +212,17 @@ export function ImpactChips({
 // ---------- 审批进度环(32px,琥珀底环 + 绿色进度弧) ----------
 
 export function ProgressRing({ approved, total }: { approved: number; total: number }) {
+  const { t } = useT()
   const size = 32
   const stroke = 3
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
   const ratio = total > 0 ? approved / total : 0
   return (
-    <span className="relative inline-flex size-8 shrink-0 items-center justify-center" title={`审批进度 ${approved}/${total}`}>
+    <span
+      className="relative inline-flex size-8 shrink-0 items-center justify-center"
+      title={t('changes.progress.title', { approved, total })}
+    >
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#FDE8C8" strokeWidth={stroke} />
         <motion.circle
@@ -238,8 +249,9 @@ export function ProgressRing({ approved, total }: { approved: number; total: num
 // ---------- 状态步进器(已提交 → 影响分析 → 审批中 → 已生效/已驳回) ----------
 
 export function StatusStepper({ status }: { status: ChangeStatus | string }) {
-  const finalLabel = status === 'rejected' ? '已驳回' : '已生效'
-  const steps = ['已提交', '影响分析', '审批中', finalLabel]
+  const { t } = useT()
+  const finalLabel = status === 'rejected' ? t('common.status.rejected') : t('common.status.effective')
+  const steps = [t('changes.stepper.submitted'), t('changes.impact.title'), t('common.status.approving'), finalLabel]
   // current:当前进行中的步骤下标;doneBefore:其前步骤全部完成
   const current = status === 'pending' ? 2 : 3
   return (
@@ -310,8 +322,8 @@ export function SearchSelect({
   value,
   onChange,
   options,
-  placeholder = '请选择',
-  searchPlaceholder = '搜索…',
+  placeholder,
+  searchPlaceholder,
   disabled,
   className,
 }: {
@@ -323,6 +335,9 @@ export function SearchSelect({
   disabled?: boolean
   className?: string
 }) {
+  const { t } = useT()
+  const resolvedPlaceholder = placeholder ?? t('changes.searchSelect.placeholder')
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t('changes.searchSelect.searchPlaceholder')
   const [open, setOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -372,7 +387,7 @@ export function SearchSelect({
             {selected.trailing}
           </span>
         ) : (
-          <span className="text-slate-400">{placeholder}</span>
+          <span className="text-slate-400">{resolvedPlaceholder}</span>
         )}
         <ChevronDown className="size-3.5 shrink-0 text-slate-400" />
       </button>
@@ -384,13 +399,13 @@ export function SearchSelect({
               autoFocus
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder={searchPlaceholder}
+              placeholder={resolvedSearchPlaceholder}
               className="w-full bg-transparent text-[13px] outline-none placeholder:text-slate-400"
             />
           </div>
           <div className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <p className="px-3 py-3 text-center text-xs text-slate-400">无匹配项</p>
+              <p className="px-3 py-3 text-center text-xs text-slate-400">{t('changes.searchSelect.empty')}</p>
             ) : (
               filtered.map((o) => (
                 <button

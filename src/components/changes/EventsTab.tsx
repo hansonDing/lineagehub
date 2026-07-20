@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import type { ChangeType } from '@/lib/api'
 import { getChange, listChanges } from '@/lib/api'
 import { formatChangeId, formatDateTime, relativeTime } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ChangeTypeBadge, StatusBadge } from '@/components/common/StatusBadge'
 import { APPROVALS_REFRESH_EVENT } from '@/components/Layout'
@@ -30,12 +31,12 @@ type EventStatus = 'pending' | 'approving' | 'approved' | 'rejected'
 type StatusFilter = 'all' | EventStatus
 type TimeRange = '7d' | '30d' | 'all'
 
-const STATUS_CHIPS: { key: StatusFilter; label: string }[] = [
-  { key: 'all', label: '全部' },
-  { key: 'pending', label: '待审批' },
-  { key: 'approving', label: '审批中' },
-  { key: 'approved', label: '已生效' },
-  { key: 'rejected', label: '已驳回' },
+const STATUS_CHIPS: { key: StatusFilter; labelKey: string }[] = [
+  { key: 'all', labelKey: 'changes.events.filter.all' },
+  { key: 'pending', labelKey: 'common.status.pending' },
+  { key: 'approving', labelKey: 'common.status.approving' },
+  { key: 'approved', labelKey: 'common.status.effective' },
+  { key: 'rejected', labelKey: 'common.status.rejected' },
 ]
 
 const STATUS_DOT: Record<EventStatus, string> = {
@@ -66,6 +67,7 @@ export function EventsTab({
   onOpenDetail: (id: number) => void
   onCreate: () => void
 }) {
+  const { t } = useT()
   const [events, setEvents] = useState<ChangeListItemReal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -161,7 +163,7 @@ export function EventsTab({
                   : 'border-slate-200 bg-white text-slate-500 hover:text-slate-900',
               )}
             >
-              {chip.label}
+              {t(chip.labelKey)}
               <span className="tabular-nums text-slate-400">{counts.get(chip.key) ?? 0}</span>
             </button>
           ))}
@@ -172,9 +174,9 @@ export function EventsTab({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">全部类型</SelectItem>
-              <SelectItem value="ddl_change">DDL 变更</SelectItem>
-              <SelectItem value="sql_change">SQL 变更</SelectItem>
+              <SelectItem value="all">{t('changes.filter.allTypes')}</SelectItem>
+              <SelectItem value="ddl_change">{t('common.changeType.ddl_change')}</SelectItem>
+              <SelectItem value="sql_change">{t('common.changeType.sql_change')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
@@ -182,9 +184,9 @@ export function EventsTab({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7d">近 7 天</SelectItem>
-              <SelectItem value="30d">近 30 天</SelectItem>
-              <SelectItem value="all">全部时间</SelectItem>
+              <SelectItem value="7d">{t('changes.events.range.7d')}</SelectItem>
+              <SelectItem value="30d">{t('changes.events.range.30d')}</SelectItem>
+              <SelectItem value="all">{t('changes.events.range.all')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -200,21 +202,21 @@ export function EventsTab({
       ) : error ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-16 text-xs text-danger">
           <AlertCircle className="size-3.5" />
-          变更事件加载失败
+          {t('changes.events.loadFailed')}
           <button type="button" onClick={() => void load()} className="text-primary-600 hover:underline">
-            重试
+            {t('common.button.retry')}
           </button>
         </div>
       ) : groups.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white">
           <EmptyState
             image="/empty-change.svg"
-            title="暂无变更事件"
-            description="从 DDL 或 SQL 变更开始"
+            title={t('changes.events.empty.title')}
+            description={t('changes.events.empty.desc')}
             action={
               <Button variant="secondary" onClick={onCreate}>
                 <GitBranchPlus className="size-3.5" />
-                发起变更
+                {t('changes.action.create')}
               </Button>
             }
           />
@@ -233,7 +235,7 @@ export function EventsTab({
                   const status = deriveStatus(ev)
                   const detail = details.get(ev.id)
                   const diff = parseDiffSummary(ev.diff_summary)
-                  const title = changeTitle(ev.change_type, ev.object_name, diff)
+                  const title = changeTitle(t, ev.change_type, ev.object_name, diff)
                   const approvedCount = detail
                     ? detail.approvals.filter((a) => a.status === 'approved').length
                     : ev.approved_tasks
@@ -267,16 +269,15 @@ export function EventsTab({
                           <ChangeTypeBadge type={ev.change_type} className="shrink-0" />
                         </div>
                         <div className="mt-1 truncate text-xs text-slate-500">
-                          {ev.submitted_by} 发起
+                          {t('changes.events.submittedBy', { name: ev.submitted_by })}
                           {' · '}
-                          {detail ? (
-                            <>
-                              影响 报表×{detail.impacted_reports.length} 系统×
-                              {detail.impacted_systems.length} 表×{detail.impacted_tables.length}
-                            </>
-                          ) : (
-                            <>影响对象×{ev.impact_count}</>
-                          )}
+                          {detail
+                            ? t('changes.events.impact', {
+                                reports: detail.impacted_reports.length,
+                                systems: detail.impacted_systems.length,
+                                tables: detail.impacted_tables.length,
+                              })
+                            : t('changes.events.impactObjects', { count: ev.impact_count })}
                           {' · '}
                           <span title={formatDateTime(ev.created_at)}>{relativeTime(ev.created_at)}</span>
                         </div>

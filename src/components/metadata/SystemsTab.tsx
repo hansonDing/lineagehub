@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react'
 import { AlertCircle, ArrowLeftRight, Copy, Pencil, Plus, Send, Server, Trash2 } from 'lucide-react'
 import type { ReportListItem, System, SystemKind, TableListItem } from '@/lib/api'
 import { deleteSystem } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import type { Column } from '@/components/common/DataTable'
 import { DataTable } from '@/components/common/DataTable'
@@ -21,11 +22,12 @@ import { SystemModal } from './SystemModal'
 type Row = System & Record<string, unknown>
 
 function KindBadge({ kind }: { kind: SystemKind }) {
+  const { t } = useT()
   if (kind === 'source') {
     return (
       <span className="inline-flex h-5 items-center gap-1 rounded bg-primary-50 px-1.5 text-[11px] font-medium text-primary-700">
         <Server className="size-3" />
-        源系统
+        {t('metadata.systems.kind.source')}
       </span>
     )
   }
@@ -36,14 +38,14 @@ function KindBadge({ kind }: { kind: SystemKind }) {
         style={{ backgroundColor: 'rgba(201,162,63,0.12)', color: '#92700F' }}
       >
         <Send className="size-3" />
-        目标系统
+        {t('metadata.systems.kind.target')}
       </span>
     )
   }
   return (
     <span className="inline-flex h-5 items-center gap-1 rounded bg-slate-100 px-1.5 text-[11px] font-medium text-slate-600">
       <ArrowLeftRight className="size-3" />
-      双向
+      {t('metadata.systems.kind.both')}
     </span>
   )
 }
@@ -67,6 +69,7 @@ export function SystemsTab({
   onNavigateToTables,
   onNavigateToReports,
 }: SystemsTabProps) {
+  const { t } = useT()
   const [keyword, setKeyword] = useState('')
   const [kindFilter, setKindFilter] = useState<'all' | SystemKind>('all')
   const [modalOpen, setModalOpen] = useState(false)
@@ -107,11 +110,14 @@ export function SystemsTab({
     setDeleteLoading(true)
     try {
       await deleteSystem(deleteTarget.id)
-      toast.success('系统已删除', deleteTarget.name)
+      toast.success(t('metadata.systems.toast.deleted'), deleteTarget.name)
       setDeleteTarget(null)
       onRefresh()
     } catch (err) {
-      toast.error('删除失败', err instanceof Error ? err.message : '请求失败')
+      toast.error(
+        t('metadata.toast.deleteFailed'),
+        err instanceof Error ? err.message : t('metadata.toast.requestFailed'),
+      )
     } finally {
       setDeleteLoading(false)
     }
@@ -120,16 +126,16 @@ export function SystemsTab({
   const copyContact = async (contact: string) => {
     try {
       await navigator.clipboard.writeText(contact)
-      toast.success('已复制', contact)
+      toast.success(t('metadata.systems.toast.copied'), contact)
     } catch {
-      toast.error('复制失败', '浏览器拒绝了剪贴板访问')
+      toast.error(t('metadata.systems.toast.copyFailed'), t('metadata.systems.toast.copyFailedDesc'))
     }
   }
 
   const columns: Column<Row>[] = [
     {
       key: 'name',
-      title: '系统名称',
+      title: t('metadata.systems.col.name'),
       render: (row) => (
         <span>
           <span className="block text-[13px] font-semibold text-slate-900">{row.name}</span>
@@ -139,13 +145,13 @@ export function SystemsTab({
     },
     {
       key: 'kind',
-      title: '类型',
+      title: t('metadata.systems.col.kind'),
       width: 100,
       render: (row) => <KindBadge kind={row.kind} />,
     },
     {
       key: 'owner',
-      title: '负责人',
+      title: t('metadata.field.owner'),
       render: (row) => (
         <span className="flex items-center gap-1.5">
           <Avatar name={row.owner || '?'} size={24} />
@@ -155,14 +161,14 @@ export function SystemsTab({
     },
     {
       key: 'contact',
-      title: '联系方式',
+      title: t('metadata.field.contact'),
       render: (row) =>
         row.contact ? (
           <span className="group flex items-center gap-1">
             <span className="font-mono text-xs text-slate-500">{row.contact}</span>
             <button
               type="button"
-              aria-label="复制联系方式"
+              aria-label={t('metadata.systems.copyContact')}
               onClick={() => void copyContact(row.contact)}
               className="text-slate-300 opacity-0 transition-opacity duration-120 hover:text-slate-600 group-hover:opacity-100"
             >
@@ -175,7 +181,7 @@ export function SystemsTab({
     },
     {
       key: 'tables',
-      title: '关联表',
+      title: t('metadata.systems.col.tables'),
       width: 76,
       render: (row) => {
         const n = tableCountBySystem.get(row.id) ?? 0
@@ -196,7 +202,7 @@ export function SystemsTab({
     },
     {
       key: 'reports',
-      title: '关联报表',
+      title: t('metadata.systems.col.reports'),
       width: 84,
       render: (row) => {
         const n = reportCountBySystem.get(row.id) ?? 0
@@ -217,7 +223,7 @@ export function SystemsTab({
     },
     {
       key: 'description',
-      title: '描述',
+      title: t('metadata.field.description'),
       render: (row) => (
         <span className="block max-w-[220px] truncate text-xs text-slate-500" title={row.description}>
           {row.description || '—'}
@@ -226,7 +232,7 @@ export function SystemsTab({
     },
     {
       key: 'actions',
-      title: '操作',
+      title: t('metadata.field.actions'),
       width: 84,
       align: 'right',
       render: (row) => (
@@ -234,7 +240,7 @@ export function SystemsTab({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="编辑"
+            aria-label={t('common.button.edit')}
             onClick={() => {
               setEditing(row)
               setModalOpen(true)
@@ -242,7 +248,7 @@ export function SystemsTab({
           >
             <Pencil className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="删除" onClick={() => setDeleteTarget(row)}>
+          <Button variant="ghost" size="icon-sm" aria-label={t('common.button.delete')} onClick={() => setDeleteTarget(row)}>
             <Trash2 className="size-3.5" />
           </Button>
         </span>
@@ -258,12 +264,12 @@ export function SystemsTab({
     <div>
       {/* 工具条 */}
       <div className="mb-3 flex items-center gap-2">
-        <SearchInput value={keyword} onChange={setKeyword} placeholder="搜索系统名称 / 负责人…" className="w-60" />
+        <SearchInput value={keyword} onChange={setKeyword} placeholder={t('metadata.systems.searchPlaceholder')} className="w-60" />
         <SelectInput value={kindFilter} onChange={(e) => setKindFilter(e.target.value as 'all' | SystemKind)} className="w-32">
-          <option value="all">全部类型</option>
-          <option value="source">源系统</option>
-          <option value="target">目标系统</option>
-          <option value="both">双向</option>
+          <option value="all">{t('metadata.systems.filter.allKinds')}</option>
+          <option value="source">{t('metadata.systems.kind.source')}</option>
+          <option value="target">{t('metadata.systems.kind.target')}</option>
+          <option value="both">{t('metadata.systems.kind.both')}</option>
         </SelectInput>
         <div className="ml-auto">
           <Button
@@ -273,7 +279,7 @@ export function SystemsTab({
             }}
           >
             <Plus className="size-3.5" />
-            新增系统
+            {t('metadata.systems.add')}
           </Button>
         </div>
       </div>
@@ -284,12 +290,12 @@ export function SystemsTab({
         rowKey={(row) => row.id}
         loading={loading}
         emptyImage="/empty-table.svg"
-        emptyTitle="未找到匹配的系统"
-        emptyDescription="换个关键词,或检查筛选条件"
+        emptyTitle={t('metadata.systems.empty.title')}
+        emptyDescription={t('metadata.empty.filterDesc')}
         footer={
           hasFilter && filtered.length !== systems.length
-            ? `筛选出 ${filtered.length} 条 / 共 ${systems.length} 条`
-            : `共 ${filtered.length} 条`
+            ? t('metadata.table.filteredTotal', { filtered: filtered.length, total: systems.length })
+            : t('common.table.total', { count: filtered.length })
         }
       />
 
@@ -303,16 +309,18 @@ export function SystemsTab({
         title={
           <span className="flex items-center gap-2">
             <AlertCircle className="size-4" />
-            无法删除
+            {t('metadata.systems.delete.blocked.title')}
           </span>
         }
-        footer={<Button onClick={() => setDeleteTarget(null)}>知道了</Button>}
+        footer={<Button onClick={() => setDeleteTarget(null)}>{t('metadata.systems.delete.blocked.ok')}</Button>}
       >
         {deleteTarget && deletingRef && (
           <p className="text-[13px] leading-6 text-slate-700">
-            仍有 <span className="font-mono font-medium text-danger">{deletingRef.tables}</span> 张表 /{' '}
-            <span className="font-mono font-medium text-danger">{deletingRef.reports}</span> 个报表关联系统「
-            {deleteTarget.name}」,请先解除关联。
+            {t('metadata.systems.delete.blocked.still')}{' '}
+            <span className="font-mono font-medium text-danger">{deletingRef.tables}</span>{' '}
+            {t('metadata.systems.delete.blocked.tables')} /{' '}
+            <span className="font-mono font-medium text-danger">{deletingRef.reports}</span>{' '}
+            {t('metadata.systems.delete.blocked.reports', { name: deleteTarget.name })}
           </p>
         )}
       </Modal>
@@ -321,12 +329,13 @@ export function SystemsTab({
       <ConfirmDeleteModal
         open={!!deleteTarget && !isReferenced}
         onClose={() => setDeleteTarget(null)}
-        title="删除系统"
+        title={t('metadata.systems.delete.title')}
         description={
           deleteTarget && (
             <>
-              确认删除系统 <span className="font-medium text-slate-900">{deleteTarget.name}</span>
-              ?该操作不可撤销。
+              {t('metadata.systems.delete.confirmPre')}{' '}
+              <span className="font-medium text-slate-900">{deleteTarget.name}</span>
+              {t('metadata.systems.delete.confirmPost')}
             </>
           )
         }

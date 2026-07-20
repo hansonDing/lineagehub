@@ -23,6 +23,7 @@ import {
   listSystems,
   listTables,
 } from '@/lib/api'
+import { getLang, translate, useT } from '@/lib/i18n'
 import { Tabs } from '@/components/common/Tabs'
 import { toast } from '@/components/common/Toast'
 import { SystemsTab } from '@/components/metadata/SystemsTab'
@@ -58,6 +59,7 @@ const VALID_TABS: TabKey[] = ['systems', 'tables', 'reports']
 const VALID_LAYERS: TableLayer[] = ['ods', 'dim', 'dwd', 'dws', 'ads']
 
 export default function Metadata() {
+  const { t } = useT()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<TabKey>('systems')
   const [systems, setSystems] = useState<System[]>([])
@@ -92,7 +94,12 @@ export default function Metadata() {
     entrancePlayed = false
     setLoading(true)
     refresh()
-      .catch(() => toast.error('加载失败', '无法获取元数据'))
+      .catch(() =>
+        toast.error(
+          translate(getLang(), 'metadata.toast.loadFailed'),
+          translate(getLang(), 'metadata.toast.loadFailedDesc'),
+        ),
+      )
       .finally(() => setLoading(false))
   }, [refresh])
 
@@ -138,8 +145,8 @@ export default function Metadata() {
       {/* 页面头 */}
       <Section index={0}>
         <div className="mb-4 flex items-baseline justify-between">
-          <h1 className="text-xl font-semibold leading-7 text-slate-900">元数据配置</h1>
-          <p className="text-xs text-slate-500">血缘由 SQL 自动解析,本页维护归属与责任人</p>
+          <h1 className="text-xl font-semibold leading-7 text-slate-900">{t('metadata.title')}</h1>
+          <p className="text-xs text-slate-500">{t('metadata.subtitle')}</p>
         </div>
       </Section>
 
@@ -149,9 +156,9 @@ export default function Metadata() {
           value={tab}
           onChange={switchTab}
           items={[
-            { key: 'systems', label: '业务系统', count: systems.length },
-            { key: 'tables', label: '数仓表', count: tables.length },
-            { key: 'reports', label: '报表', count: reports.length },
+            { key: 'systems', label: t('metadata.tabs.systems'), count: systems.length },
+            { key: 'tables', label: t('metadata.tabs.tables'), count: tables.length },
+            { key: 'reports', label: t('metadata.tabs.reports'), count: reports.length },
           ]}
           className="mb-4"
         />

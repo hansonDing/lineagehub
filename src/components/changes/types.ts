@@ -14,7 +14,10 @@ import type {
   ColumnDiffEntry,
 } from '@/lib/api'
 import type { DiffLine } from '@/components/common/CodeEditor'
-import { CHANGE_TYPE_NAMES } from '@/lib/format'
+import type { I18nVars } from '@/lib/i18n'
+
+/** useT() 的 t 函数签名(纯函数模块通过参数注入,避免直接依赖 React) */
+export type TFunc = (key: string, vars?: I18nVars) => string
 
 // ---------- 真实响应类型 ----------
 
@@ -87,20 +90,20 @@ export function isDiffEmpty(diff: ChangeDiff | null | undefined): boolean {
   return c.added + c.removed + c.changed + e.added + e.removed === 0
 }
 
-/** 差异一句话:「新增 2 字段,删除 1 字段,变更 1 字段类型」/「新增 1 条血缘边」 */
-export function summarizeDiff(changeType: ChangeType, diff: ChangeDiff): string {
+/** 差异一句话:「新增 2 字段,删除 1 字段,变更 1 字段类型」/「新增 1 条血缘边」(文案走 changes.diff.*) */
+export function summarizeDiff(t: TFunc, changeType: ChangeType, diff: ChangeDiff): string {
   const parts: string[] = []
   if (changeType === 'ddl_change') {
     const c = countColumnDiff(diff)
-    if (c.added) parts.push(`新增 ${c.added} 字段`)
-    if (c.removed) parts.push(`删除 ${c.removed} 字段`)
-    if (c.changed) parts.push(`变更 ${c.changed} 字段类型`)
+    if (c.added) parts.push(t('changes.diff.fieldsAdded', { count: c.added }))
+    if (c.removed) parts.push(t('changes.diff.fieldsRemoved', { count: c.removed }))
+    if (c.changed) parts.push(t('changes.diff.fieldsTypeChanged', { count: c.changed }))
   } else {
     const e = countEdgeDiff(diff)
-    if (e.added) parts.push(`新增 ${e.added} 条血缘边`)
-    if (e.removed) parts.push(`移除 ${e.removed} 条血缘边`)
+    if (e.added) parts.push(t('changes.diff.edgesAdded', { count: e.added }))
+    if (e.removed) parts.push(t('changes.diff.edgesRemoved', { count: e.removed }))
   }
-  return parts.length ? parts.join(',') : '无结构差异'
+  return parts.length ? parts.join(t('changes.diff.join')) : t('changes.diff.empty')
 }
 
 /** 从 diff_summary(JSON 字符串)解析 diff;失败返回空 */
@@ -114,9 +117,9 @@ export function parseDiffSummary(diffSummary: string | null | undefined): Change
   }
 }
 
-/** 变更条目标题:「dwd.dwd_trade_order_detail DDL 变更:新增 2 字段,变更 1 字段类型」 */
-export function changeTitle(changeType: ChangeType, objectName: string, diff: ChangeDiff): string {
-  return `${objectName} ${CHANGE_TYPE_NAMES[changeType]}:${summarizeDiff(changeType, diff)}`
+/** 变更条目标题:「dwd.dwd_trade_order_detail DDL 变更:新增 2 字段,变更 1 字段类型」(类型名走 common.changeType.*) */
+export function changeTitle(t: TFunc, changeType: ChangeType, objectName: string, diff: ChangeDiff): string {
+  return `${objectName} ${t(`common.changeType.${changeType}`)}${t('changes.diff.titleSep')}${summarizeDiff(t, changeType, diff)}`
 }
 
 /** 列 diff 条目的变更后类型(后端 added 用 data_type 键,兼容 new_type) */
