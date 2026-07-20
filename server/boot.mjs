@@ -8,7 +8,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url)); // dist/
-const PORT = Number(process.env.PORT || 8000);
+// 预览平台健康检查端口为 3000;可用 PORT 环境变量覆盖
+const PORT = Number(process.env.PORT || 3000);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
