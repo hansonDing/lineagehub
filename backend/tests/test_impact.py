@@ -32,14 +32,14 @@ def session():
     edge("x.f", "x.e")  # 环
     db.flush()
 
-    bi = System(name="BI", kind="target", owner="周八")
-    fin = System(name="财务", kind="target", owner="吴九")
+    bi = System(name="BI", kind="target", owner="Jerry")
+    fin = System(name="财务", kind="target", owner="Maggie")
     db.add_all([bi, fin])
     db.flush()
-    db.add(Report(name="报表C", table_id=tables["dws.c"].id, target_system_id=bi.id, owner="张三"))
-    db.add(Report(name="报表C2", table_id=tables["dws.c"].id, target_system_id=bi.id, owner="李四"))
-    db.add(Report(name="报表D", table_id=tables["ads.d"].id, target_system_id=fin.id, owner="王五"))
-    db.add(Report(name="报表A", table_id=tables["ods.a"].id, target_system_id=fin.id, owner="赵六"))
+    db.add(Report(name="报表C", table_id=tables["dws.c"].id, target_system_id=bi.id, owner="Leo"))
+    db.add(Report(name="报表C2", table_id=tables["dws.c"].id, target_system_id=bi.id, owner="Doris"))
+    db.add(Report(name="报表D", table_id=tables["ads.d"].id, target_system_id=fin.id, owner="Fiona"))
+    db.add(Report(name="报表A", table_id=tables["ods.a"].id, target_system_id=fin.id, owner="Hanson"))
     db.commit()
     yield db, tables
     db.close()

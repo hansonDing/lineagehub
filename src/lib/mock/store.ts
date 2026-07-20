@@ -2,7 +2,7 @@
  * 演示模式内存状态 + localStorage 持久化。
  * 首次进入用 seed 初始化(与后端 DB 为空时自动灌入的种子一致):
  * 表/字段/血缘边由 engine 对种子 SQL 真实解析生成,不手写任何边。
- * 所有写操作后调用 persist() 持久化到 localStorage(键 lineagehub-demo-v1)。
+ * 所有写操作后调用 persist() 持久化到 localStorage(键 lineagehub-demo-v2)。
  */
 
 import type { Report, SqlScriptDetail } from '@/lib/api'
@@ -15,7 +15,7 @@ import {
 } from './seed'
 import { detectSqlType, engineParse, nextId, nowIso, persistParse, type MockState } from './engine'
 
-export const DEMO_STORAGE_KEY = 'lineagehub-demo-v1'
+export const DEMO_STORAGE_KEY = 'lineagehub-demo-v2'
 
 let cached: MockState | null = null
 

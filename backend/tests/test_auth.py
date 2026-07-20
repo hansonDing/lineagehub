@@ -19,7 +19,7 @@ def client():
         yield c
 
 
-def _login(client, username="张三", password=DEFAULT_PASSWORD):
+def _login(client, username="Leo", password=DEFAULT_PASSWORD):
     return client.post("/api/auth/login", json={"username": username, "password": password})
 
 
@@ -31,13 +31,13 @@ def test_users_list(client):
     assert len(users) == 7
     by_name = {u["name"]: u["role"] for u in users}
     assert by_name == {
-        "张三": "数据工程师",
-        "李四": "数据工程师",
-        "王五": "数据分析师",
-        "赵六": "系统负责人",
-        "孙七": "系统负责人",
-        "周八": "BI 工程师",
-        "吴九": "财务分析师",
+        "Leo": "数据工程师",
+        "Doris": "数据工程师",
+        "Fiona": "数据分析师",
+        "Hanson": "系统负责人",
+        "Jacky": "系统负责人",
+        "Jerry": "BI 工程师",
+        "Maggie": "财务分析师",
     }
     # 不泄露密码字段
     assert all(set(u.keys()) == {"name", "role"} for u in users)
@@ -45,21 +45,21 @@ def test_users_list(client):
 
 # ---------------------------------------------------------------- 登录
 def test_login_success(client):
-    r = _login(client, "王五")
+    r = _login(client, "Fiona")
     assert r.status_code == 200
     body = r.json()
-    assert body["user"] == {"name": "王五", "role": "数据分析师"}
+    assert body["user"] == {"name": "Fiona", "role": "数据分析师"}
     # token 格式:{base64url(username)}.{issued_at}.{signature},整体必须是 ASCII(可放 HTTP 头)
     token = body["token"]
     token.encode("ascii")
     parts = token.split(".")
     assert len(parts) == 3
-    assert auth_module._b64url_decode(parts[0]) == "王五"
+    assert auth_module._b64url_decode(parts[0]) == "Fiona"
     assert parts[1].isdigit() and parts[2]
 
 
 def test_login_wrong_password(client):
-    r = _login(client, "张三", "wrong-password")
+    r = _login(client, "Leo", "wrong-password")
     assert r.status_code == 401
     assert r.json()["detail"] == "用户名或密码错误"
 
@@ -72,10 +72,10 @@ def test_login_unknown_user(client):
 
 # ---------------------------------------------------------------- me
 def test_me_valid_token(client):
-    token = _login(client, "赵六").json()["token"]
+    token = _login(client, "Hanson").json()["token"]
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json() == {"name": "赵六", "role": "系统负责人"}
+    assert r.json() == {"name": "Hanson", "role": "系统负责人"}
 
 
 def test_me_missing_header(client):
@@ -98,8 +98,8 @@ def test_me_invalid_token(client):
 def test_me_expired_token(client):
     # 用模块内部签名函数造一个 25 小时前签发的 token(密钥与服务端一致)
     old_issued_at = str(int(time.time()) - 25 * 3600)
-    signature = auth_module._sign(f"张三.{old_issued_at}")
-    expired = f"{auth_module._b64url_encode('张三')}.{old_issued_at}.{signature}"
+    signature = auth_module._sign(f"Leo.{old_issued_at}")
+    expired = f"{auth_module._b64url_encode('Leo')}.{old_issued_at}.{signature}"
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {expired}"})
     assert r.status_code == 401
     assert r.json()["detail"] == "token 已过期"

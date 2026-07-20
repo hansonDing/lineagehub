@@ -115,7 +115,7 @@ def test_ddl_change_full_approve_applies(client):
         json={
             "table_id": tid,
             "new_ddl": "ALTER TABLE ods.ods_trade_order ADD COLUMNS (pay_channel STRING COMMENT '支付渠道')",
-            "submitted_by": "赵六",
+            "submitted_by": "Hanson",
         },
     )
     assert r.status_code == 200
@@ -166,7 +166,7 @@ def test_ddl_change_any_reject_blocks(client):
         json={
             "table_id": tid,
             "new_ddl": "CREATE TABLE dim.dim_region (region_code STRING COMMENT '地区编码', region_name STRING COMMENT '地区名称')",
-            "submitted_by": "孙七",
+            "submitted_by": "Jacky",
         },
     )
     detail = r.json()
@@ -218,7 +218,7 @@ def test_sql_change_applied_after_full_approve(client):
         "COUNT(DISTINCT user_id) AS buyer_cnt, SUM(total_amount) AS gmv "
         "FROM dwd.dwd_trade_order_detail GROUP BY dt, region_name"
     )
-    r = client.post("/api/changes/sql", json={"script_id": sid, "new_sql": new_sql, "submitted_by": "张三"})
+    r = client.post("/api/changes/sql", json={"script_id": sid, "new_sql": new_sql, "submitted_by": "Leo"})
     detail = r.json()
     event = detail["event"]
     assert event["status"] == "pending"
@@ -247,8 +247,8 @@ def test_approvals_inbox_filter(client):
     for it in items:
         assert it["status"] == "pending"
         assert {"id", "change_type", "object_name", "status", "submitted_by", "created_at"} <= set(it["change_event"].keys())
-    zhangsan = client.get("/api/approvals?approver=张三").json()
-    assert all(t["approver_name"] == "张三" for t in zhangsan)
+    leo = client.get("/api/approvals?approver=Leo").json()
+    assert all(t["approver_name"] == "Leo" for t in leo)
 
 
 def test_delete_script_removes_edges(client):

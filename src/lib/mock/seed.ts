@@ -14,10 +14,10 @@ export const SEED_SYSTEMS: {
   contact: string
   description: string
 }[] = [
-  { name: '订单中心', kind: 'source', owner: '赵六', contact: 'zhaoliu@example.com', description: '交易订单业务库' },
-  { name: '用户中心', kind: 'source', owner: '孙七', contact: 'sunqi@example.com', description: '用户主数据业务库' },
-  { name: 'BI 平台', kind: 'target', owner: '周八', contact: 'zhouba@example.com', description: '经营分析看板平台' },
-  { name: '财务系统', kind: 'target', owner: '吴九', contact: 'wujiu@example.com', description: '财务核算与报表系统' },
+  { name: '订单中心', kind: 'source', owner: 'Hanson', contact: 'hanson@example.com', description: '交易订单业务库' },
+  { name: '用户中心', kind: 'source', owner: 'Jacky', contact: 'jacky@example.com', description: '用户主数据业务库' },
+  { name: 'BI 平台', kind: 'target', owner: 'Jerry', contact: 'jerry@example.com', description: '经营分析看板平台' },
+  { name: '财务系统', kind: 'target', owner: 'Maggie', contact: 'maggie@example.com', description: '财务核算与报表系统' },
 ]
 
 // ---------------------------------------------------------------- DDL
@@ -121,24 +121,24 @@ export const SEED_TABLE_SOURCE: Record<string, string> = {
 
 /** 表负责人 */
 export const SEED_TABLE_OWNERS: Record<string, string> = {
-  'ods.ods_trade_order': '赵六',
-  'ods.ods_user_info': '孙七',
-  'dim.dim_region': '孙七',
-  'dwd.dwd_trade_order_detail': '王五',
-  'dws.dws_trade_daily_summary': '王五',
-  'ads.ads_trade_daily_report': '张三',
-  'ads.ads_user_repurchase': '王五',
+  'ods.ods_trade_order': 'Hanson',
+  'ods.ods_user_info': 'Jacky',
+  'dim.dim_region': 'Jacky',
+  'dwd.dwd_trade_order_detail': 'Fiona',
+  'dws.dws_trade_daily_summary': 'Fiona',
+  'ads.ads_trade_daily_report': 'Leo',
+  'ads.ads_user_repurchase': 'Fiona',
 }
 
 // ---------------------------------------------------------------- 鉴权(与 backend/app/routers/auth.py PRESET_USERS 一致)
 export const SEED_AUTH_USERS: { name: string; role: string }[] = [
-  { name: '张三', role: '数据工程师' },
-  { name: '李四', role: '数据工程师' },
-  { name: '王五', role: '数据分析师' },
-  { name: '赵六', role: '系统负责人' },
-  { name: '孙七', role: '系统负责人' },
-  { name: '周八', role: 'BI 工程师' },
-  { name: '吴九', role: '财务分析师' },
+  { name: 'Leo', role: '数据工程师' },
+  { name: 'Doris', role: '数据工程师' },
+  { name: 'Fiona', role: '数据分析师' },
+  { name: 'Hanson', role: '系统负责人' },
+  { name: 'Jacky', role: '系统负责人' },
+  { name: 'Jerry', role: 'BI 工程师' },
+  { name: 'Maggie', role: '财务分析师' },
 ]
 
 /** 演示模式统一登录密码(对齐后端 AUTH_PASSWORD 默认值) */
@@ -195,8 +195,8 @@ export const SEED_REPORTS: {
     name: '经营日报',
     table: 'ads.ads_trade_daily_report',
     system: 'BI 平台',
-    owner: '张三',
-    owner_contact: 'zhangsan@example.com',
+    owner: 'Leo',
+    owner_contact: 'leo@example.com',
     schedule: '每日 08:00',
     description: '面向管理层的每日经营核心指标',
   },
@@ -204,8 +204,8 @@ export const SEED_REPORTS: {
     name: '财务收入月报',
     table: 'ads.ads_trade_daily_report',
     system: '财务系统',
-    owner: '李四',
-    owner_contact: 'lisi@example.com',
+    owner: 'Doris',
+    owner_contact: 'doris@example.com',
     schedule: '每月 1 日 06:00',
     description: '财务口径收入月报',
   },
@@ -213,8 +213,8 @@ export const SEED_REPORTS: {
     name: '用户复购分析',
     table: 'ads.ads_user_repurchase',
     system: 'BI 平台',
-    owner: '王五',
-    owner_contact: 'wangwu@example.com',
+    owner: 'Fiona',
+    owner_contact: 'fiona@example.com',
     schedule: '每日 09:00',
     description: '用户复购行为分析看板',
   },

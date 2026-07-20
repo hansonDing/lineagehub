@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils'
 
 /**
  * Avatar 首字母头像(design.md §9.13)
- * 圆形,取姓名末字;底色按姓名 hash 轮换;多人叠放 -6px 偏移 + 2px 白描边
+ * 圆形,拉丁/ASCII 名取首字母大写(Leo→L),中文名取末字;
+ * 底色按姓名 hash 轮换;多人叠放 -6px 偏移 + 2px 白描边
  */
 
 const PALETTE = ['#0F766E', '#4E8FD9', '#9C8E7E', '#3FA97C', '#8A94A6']
@@ -26,8 +27,16 @@ export interface AvatarProps {
   style?: CSSProperties
 }
 
+/** 显示字:拉丁/ASCII 名取首字母大写,其余(中文名)取末字 */
+function initialOf(name: string): string {
+  const trimmed = name.trim()
+  if (!trimmed) return '?'
+  const first = trimmed.charAt(0)
+  return /[A-Za-z]/.test(first) ? first.toUpperCase() : trimmed.slice(-1)
+}
+
 export function Avatar({ name, size = 28, stacked, className, style }: AvatarProps) {
-  const initial = name.trim().slice(-1) || '?'
+  const initial = initialOf(name)
   const bg = PALETTE[hashName(name) % PALETTE.length]
   return (
     <span

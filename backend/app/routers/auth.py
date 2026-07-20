@@ -4,7 +4,7 @@
 - token 格式 ``{base64url(username)}.{issued_at}.{signature}``,
   其中 signature = base64url(HMAC-SHA256(AUTH_SECRET, username + "." + issued_at)),
   issued_at 为 Unix 秒时间戳,有效期 24 小时;
-  (用户名是中文,直接放进 token 会违反 HTTP 头 ASCII 约束,故首段做 base64url 编码)
+  (用户名可能含非 ASCII 字符,直接放进 token 会违反 HTTP 头 ASCII 约束,故首段统一做 base64url 编码)
 - 本模块只提供登录/验签端点,既有业务端点不做鉴权(演示定位)。
 """
 import base64
@@ -25,13 +25,13 @@ TOKEN_TTL_SECONDS = 24 * 3600
 
 # 预设用户:与种子数据(系统/表/报表负责人)保持一致
 PRESET_USERS: list[dict] = [
-    {"name": "张三", "role": "数据工程师"},
-    {"name": "李四", "role": "数据工程师"},
-    {"name": "王五", "role": "数据分析师"},
-    {"name": "赵六", "role": "系统负责人"},
-    {"name": "孙七", "role": "系统负责人"},
-    {"name": "周八", "role": "BI 工程师"},
-    {"name": "吴九", "role": "财务分析师"},
+    {"name": "Leo", "role": "数据工程师"},
+    {"name": "Doris", "role": "数据工程师"},
+    {"name": "Fiona", "role": "数据分析师"},
+    {"name": "Hanson", "role": "系统负责人"},
+    {"name": "Jacky", "role": "系统负责人"},
+    {"name": "Jerry", "role": "BI 工程师"},
+    {"name": "Maggie", "role": "财务分析师"},
 ]
 
 # 统一错误文案:用户不存在与密码错误不区分(避免枚举用户)
