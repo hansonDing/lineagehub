@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MiniMap, Panel, useReactFlow } from '@xyflow/react'
 import { Maximize, Minus, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useT } from '@/lib/i18n'
 import type { FlowNode } from './graph-utils'
 import { layerColor } from './constants'
 
@@ -10,6 +11,7 @@ import { layerColor } from './constants'
  * 入场 opacity 0→1 200ms 延迟 200ms;详情抽屉打开时右移避让
  */
 export function CanvasControls({ offsetRight }: { offsetRight: number }) {
+  const { t } = useT()
   const rf = useReactFlow()
   const [shown, setShown] = useState(false)
   useEffect(() => {
@@ -42,7 +44,7 @@ export function CanvasControls({ offsetRight }: { offsetRight: number }) {
         nodeBorderRadius={1}
         nodeStrokeWidth={0}
         nodeColor={(n) => layerColor(String(n.data?.layer ?? 'other'))}
-        ariaLabel="血缘图缩略图"
+        ariaLabel={t('lineage.canvas.minimap')}
       />
       {/* 缩放控件:竖排 Plus / Minus / Maximize */}
       <Panel
@@ -55,17 +57,17 @@ export function CanvasControls({ offsetRight }: { offsetRight: number }) {
           transition={{ duration: 0.2, delay: 0.2 }}
           className="flex flex-col overflow-hidden rounded-lg border border-[#263349] bg-[#121B2E] shadow-overlay"
         >
-          <button type="button" aria-label="放大" className={btn} onClick={() => rf.zoomIn({ duration: 200 })}>
+          <button type="button" aria-label={t('lineage.canvas.zoomIn')} className={btn} onClick={() => rf.zoomIn({ duration: 200 })}>
             <Plus className="size-3.5" />
           </button>
           <span className="h-px bg-[#263349]" />
-          <button type="button" aria-label="缩小" className={btn} onClick={() => rf.zoomOut({ duration: 200 })}>
+          <button type="button" aria-label={t('lineage.canvas.zoomOut')} className={btn} onClick={() => rf.zoomOut({ duration: 200 })}>
             <Minus className="size-3.5" />
           </button>
           <span className="h-px bg-[#263349]" />
           <button
             type="button"
-            aria-label="适应视图"
+            aria-label={t('lineage.canvas.fitView')}
             className={btn}
             onClick={() => rf.fitView({ duration: 420, padding: 0.2 })}
           >

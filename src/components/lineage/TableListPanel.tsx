@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import type { TableLayer } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { LAYER_ORDER, layerColor } from './constants'
 import type { TableRef } from './constants'
@@ -19,6 +20,7 @@ export function TableListPanel({
   focusName: string | null
   onPick: (t: TableRef) => void
 }) {
+  const { t } = useT()
   const [collapsed, setCollapsed] = useState(false)
   const [closedGroups, setClosedGroups] = useState<Set<TableLayer>>(new Set())
 
@@ -61,7 +63,7 @@ export function TableListPanel({
             <button
               type="button"
               onClick={() => setCollapsed(false)}
-              aria-label="展开表清单"
+              aria-label={t('lineage.panel.expand')}
               className="rounded p-1 text-[#8B98AD] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.08)] hover:text-[#CBD5E1]"
             >
               <PanelLeftOpen className="size-3.5" />
@@ -71,7 +73,7 @@ export function TableListPanel({
                 key={g.layer}
                 type="button"
                 onClick={() => setCollapsed(false)}
-                title={`${g.layer.toUpperCase()} · ${g.tables.length} 张表`}
+                title={t('lineage.panel.groupInfo', { layer: g.layer.toUpperCase(), count: g.tables.length })}
                 className="size-1.5 rounded-full"
                 style={{ backgroundColor: layerColor(g.layer) }}
               />
@@ -82,12 +84,12 @@ export function TableListPanel({
             {/* 头部 */}
             <div className="flex h-10 shrink-0 items-center justify-between border-b border-[#1E293B] px-3">
               <span className="text-xs text-[#55637A]">
-                数仓表 <span className="font-mono">{tables.length}</span>
+                {t('lineage.panel.title')} <span className="font-mono">{tables.length}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
-                aria-label="折叠表清单"
+                aria-label={t('lineage.panel.collapse')}
                 className="rounded p-1 text-[#8B98AD] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.08)] hover:text-[#CBD5E1]"
               >
                 <PanelLeftClose className="size-3.5" />

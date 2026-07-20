@@ -1,7 +1,158 @@
 /**
- * 血缘图谱页(Lineage)词条 —— 桩文件
- * 由后续 i18n-lineage agent 填充;key 统一带 `lineage.` 前缀(如 `lineage.toolbar.search`)。
- * 注意:zh/en 两个字典必须同步增减;共享的状态/层名/角色/按钮文案请复用 common.ts 中的 `common.*` key。
+ * 血缘图谱页(Lineage)词条:工具条 / 表清单面板 / 图例 / 画布控件 / 节点 / 空态与错误 / 右键菜单 / 详情抽屉 / toast
+ * key 规范:lineage.<区域>.<名称>;zh/en 必须同步增减
+ * 共享文案(状态/层名/按钮)复用 common.*(如 common.layer.* / common.button.retry)
  */
-export const zh: Record<string, string> = {}
-export const en: Record<string, string> = {}
+export const zh: Record<string, string> = {
+  // ---------- 工具条 ----------
+  'lineage.toolbar.searchPlaceholder': '搜索表名…',
+  'lineage.toolbar.searchEmpty': '未找到匹配的表',
+  'lineage.toolbar.mode.overview': '全量总览',
+  'lineage.toolbar.mode.focus': '单表聚焦',
+  'lineage.toolbar.layer.hide': '隐藏 {layer} 层',
+  'lineage.toolbar.layer.show': '显示 {layer} 层',
+  'lineage.toolbar.stats': '{tables} 张表 · {edges} 条边',
+  'lineage.toolbar.depth.upstream': '上游',
+  'lineage.toolbar.depth.downstream': '下游',
+  'lineage.toolbar.depth.unit': '层',
+  'lineage.toolbar.depth.decrease': '{label}减少一层',
+  'lineage.toolbar.depth.increase': '{label}增加一层',
+  'lineage.toolbar.direction.toTB': '切换为纵向布局(TB)',
+  'lineage.toolbar.direction.toLR': '切换为横向布局(LR)',
+  // ---------- 左侧表清单 ----------
+  'lineage.panel.title': '数仓表',
+  'lineage.panel.expand': '展开表清单',
+  'lineage.panel.collapse': '折叠表清单',
+  'lineage.panel.groupInfo': '{layer} · {count} 张表',
+  // ---------- 图例 ----------
+  'lineage.legend.title': '图例',
+  'lineage.legend.collapse': '折叠图例',
+  'lineage.legend.expand': '展开图例',
+  'lineage.legend.upstream': '上游',
+  'lineage.legend.downstream': '下游',
+  // ---------- 节点 ----------
+  'lineage.node.ownerFallback': '未配置',
+  'lineage.node.reportSource': '报表源',
+  'lineage.node.tableCount': '{count} 张表',
+  'lineage.node.expand': '展开',
+  // ---------- 画布控件 ----------
+  'lineage.canvas.loading': '正在构建血缘图…',
+  'lineage.canvas.minimap': '血缘图缩略图',
+  'lineage.canvas.zoomIn': '放大',
+  'lineage.canvas.zoomOut': '缩小',
+  'lineage.canvas.fitView': '适应视图',
+  // ---------- 空态 / 错误 / 提示条 ----------
+  'lineage.empty.title': '还没有血缘数据',
+  'lineage.empty.desc': '提交第一个 SQL 脚本,解析引擎将自动构建血缘',
+  'lineage.empty.action': '去提交 SQL',
+  'lineage.error.title': '血缘数据加载失败',
+  'lineage.error.networkFailed': '网络请求失败',
+  'lineage.error.backToOverview': '返回全量总览',
+  'lineage.aggregate.hint': '全量图包含 {count} 张表,已按层聚合显示,建议搜索单表聚焦查看',
+  'lineage.isolated.hint': '该表暂无上下游血缘',
+  'lineage.isolated.action': '提交关联 SQL',
+  // ---------- 节点操作(右键菜单 / 抽屉底部,共用) ----------
+  'lineage.action.viewDetail': '查看表详情',
+  'lineage.action.configure': '在元数据中配置',
+  'lineage.action.ddlChange': '发起 DDL 变更',
+  'lineage.action.copyName': '复制表名',
+  // ---------- toast ----------
+  'lineage.toast.tableNotFound': '未找到匹配的表',
+  'lineage.toast.copied': '已复制',
+  'lineage.toast.copyFailed': '复制失败',
+  // ---------- 详情抽屉 ----------
+  'lineage.drawer.tab.fields': '字段',
+  'lineage.drawer.tab.upstream': '上游 {count}',
+  'lineage.drawer.tab.downstream': '下游 {count}',
+  'lineage.drawer.tab.sql': '关联 SQL',
+  'lineage.drawer.tab.reports': '关联报表',
+  'lineage.drawer.loadFailed': '表详情加载失败',
+  'lineage.drawer.meta': '负责人 {owner} · 来源系统 {system} · 字段 {count} · 更新于 {time}',
+  'lineage.drawer.ownerFallback': '未配置',
+  'lineage.drawer.internalSystem': '数仓内部加工',
+  'lineage.drawer.reportSource': '报表源 · {count} 张关联报表',
+  'lineage.drawer.empty.fields': '暂无字段信息',
+  'lineage.drawer.empty.upstream': '暂无上游表',
+  'lineage.drawer.empty.downstream': '暂无下游表',
+  'lineage.drawer.empty.sql': '暂无关联 SQL',
+  'lineage.drawer.empty.reports': '暂无关联报表',
+  'lineage.drawer.changeAdded': '{id} 新增',
+  'lineage.drawer.partition': '分区字段',
+}
+
+export const en: Record<string, string> = {
+  // ---------- Toolbar ----------
+  'lineage.toolbar.searchPlaceholder': 'Search tables…',
+  'lineage.toolbar.searchEmpty': 'No matching tables',
+  'lineage.toolbar.mode.overview': 'Overview',
+  'lineage.toolbar.mode.focus': 'Focus',
+  'lineage.toolbar.layer.hide': 'Hide {layer} layer',
+  'lineage.toolbar.layer.show': 'Show {layer} layer',
+  'lineage.toolbar.stats': '{tables} tables · {edges} edges',
+  'lineage.toolbar.depth.upstream': 'Upstream',
+  'lineage.toolbar.depth.downstream': 'Downstream',
+  'lineage.toolbar.depth.unit': 'layers',
+  'lineage.toolbar.depth.decrease': 'Decrease {label} by one level',
+  'lineage.toolbar.depth.increase': 'Increase {label} by one level',
+  'lineage.toolbar.direction.toTB': 'Switch to vertical layout (TB)',
+  'lineage.toolbar.direction.toLR': 'Switch to horizontal layout (LR)',
+  // ---------- Table list panel ----------
+  'lineage.panel.title': 'Tables',
+  'lineage.panel.expand': 'Expand table list',
+  'lineage.panel.collapse': 'Collapse table list',
+  'lineage.panel.groupInfo': '{layer} · {count} tables',
+  // ---------- Legend ----------
+  'lineage.legend.title': 'Legend',
+  'lineage.legend.collapse': 'Collapse legend',
+  'lineage.legend.expand': 'Expand legend',
+  'lineage.legend.upstream': 'Upstream',
+  'lineage.legend.downstream': 'Downstream',
+  // ---------- Nodes ----------
+  'lineage.node.ownerFallback': 'Unassigned',
+  'lineage.node.reportSource': 'Report source',
+  'lineage.node.tableCount': '{count} tables',
+  'lineage.node.expand': 'Expand',
+  // ---------- Canvas controls ----------
+  'lineage.canvas.loading': 'Building lineage graph…',
+  'lineage.canvas.minimap': 'Lineage graph minimap',
+  'lineage.canvas.zoomIn': 'Zoom in',
+  'lineage.canvas.zoomOut': 'Zoom out',
+  'lineage.canvas.fitView': 'Fit view',
+  // ---------- Empty / error / hint banners ----------
+  'lineage.empty.title': 'No lineage data yet',
+  'lineage.empty.desc': 'Submit your first SQL script and the parser engine will build lineage automatically',
+  'lineage.empty.action': 'Submit SQL',
+  'lineage.error.title': 'Failed to load lineage data',
+  'lineage.error.networkFailed': 'Network request failed',
+  'lineage.error.backToOverview': 'Back to Overview',
+  'lineage.aggregate.hint': 'The full graph contains {count} tables and is aggregated by layer. Search for a table to focus on it.',
+  'lineage.isolated.hint': 'This table has no upstream or downstream lineage',
+  'lineage.isolated.action': 'Submit related SQL',
+  // ---------- Node actions (context menu / drawer footer, shared) ----------
+  'lineage.action.viewDetail': 'View Table Details',
+  'lineage.action.configure': 'Configure in Metadata',
+  'lineage.action.ddlChange': 'New DDL Change',
+  'lineage.action.copyName': 'Copy Table Name',
+  // ---------- Toasts ----------
+  'lineage.toast.tableNotFound': 'No matching table',
+  'lineage.toast.copied': 'Copied',
+  'lineage.toast.copyFailed': 'Copy failed',
+  // ---------- Detail drawer ----------
+  'lineage.drawer.tab.fields': 'Columns',
+  'lineage.drawer.tab.upstream': 'Upstream {count}',
+  'lineage.drawer.tab.downstream': 'Downstream {count}',
+  'lineage.drawer.tab.sql': 'Related SQL',
+  'lineage.drawer.tab.reports': 'Related Reports',
+  'lineage.drawer.loadFailed': 'Failed to load table details',
+  'lineage.drawer.meta': 'Owner {owner} · Source system {system} · {count} columns · Updated {time}',
+  'lineage.drawer.ownerFallback': 'Unassigned',
+  'lineage.drawer.internalSystem': 'Internal warehouse pipeline',
+  'lineage.drawer.reportSource': 'Report source · {count} related reports',
+  'lineage.drawer.empty.fields': 'No column info yet',
+  'lineage.drawer.empty.upstream': 'No upstream tables',
+  'lineage.drawer.empty.downstream': 'No downstream tables',
+  'lineage.drawer.empty.sql': 'No related SQL',
+  'lineage.drawer.empty.reports': 'No related reports',
+  'lineage.drawer.changeAdded': '{id} added',
+  'lineage.drawer.partition': 'Partition column',
+}

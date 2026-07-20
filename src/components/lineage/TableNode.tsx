@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { BarChart3 } from 'lucide-react'
+import { useT } from '@/lib/i18n'
 import {
   DOWNSTREAM_COLOR,
   NODE_BORDER,
@@ -21,6 +22,7 @@ import type { TableFlowNode } from './graph-utils'
  * hover 上游 #5EA8E8 / 下游 #E8B45F 光晕;选中 #2DD4BF + 外发光
  */
 function TableNodeInner({ data }: NodeProps<TableFlowNode>) {
+  const { t } = useT()
   const color = layerColor(data.layer)
   const isTB = data.direction === 'TB'
 
@@ -69,9 +71,11 @@ function TableNodeInner({ data }: NodeProps<TableFlowNode>) {
       </div>
       {/* 第二行:负责人 + 报表源标记 */}
       <div className="mt-1 flex items-center justify-between gap-2 pl-4">
-        <span className="truncate text-[11px] leading-4 text-[#8B98AD]">{data.owner || '未配置'}</span>
+        <span className="truncate text-[11px] leading-4 text-[#8B98AD]">
+          {data.owner || t('lineage.node.ownerFallback')}
+        </span>
         {data.isReportSource && (
-          <BarChart3 className="size-3 shrink-0" style={{ color: '#C9A23F' }} aria-label="报表源" />
+          <BarChart3 className="size-3 shrink-0" style={{ color: '#C9A23F' }} aria-label={t('lineage.node.reportSource')} />
         )}
       </div>
       <Handle type="source" position={isTB ? Position.Bottom : Position.Right} />

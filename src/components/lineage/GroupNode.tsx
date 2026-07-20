@@ -2,7 +2,8 @@ import { memo } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { ChevronRight } from 'lucide-react'
-import { NODE_BORDER, NODE_FILL, layerColor, layerName } from './constants'
+import { useT } from '@/lib/i18n'
+import { NODE_BORDER, NODE_FILL, layerColor } from './constants'
 import type { GroupFlowNode } from './graph-utils'
 
 /**
@@ -10,6 +11,7 @@ import type { GroupFlowNode } from './graph-utils'
  * 每层合并为一个分组节点:层色点 + 层名 + 表数;点击展开该层
  */
 function GroupNodeInner({ data }: NodeProps<GroupFlowNode>) {
+  const { t } = useT()
   const color = layerColor(data.layer)
   const isTB = data.direction === 'TB'
   return (
@@ -29,12 +31,14 @@ function GroupNodeInner({ data }: NodeProps<GroupFlowNode>) {
         <span className="font-mono text-[13px] font-medium uppercase leading-[18px] text-[#E2E8F0]">
           {data.layer}
         </span>
-        <span className="text-[11px] leading-4 text-[#8B98AD]">{layerName(data.layer)}</span>
+        <span className="text-[11px] leading-4 text-[#8B98AD]">{t(`common.layer.${data.layer}`)}</span>
       </div>
       <div className="mt-1.5 flex items-center justify-between pl-4">
-        <span className="font-mono text-[11px] leading-4 text-[#8B98AD]">{data.count} 张表</span>
+        <span className="font-mono text-[11px] leading-4 text-[#8B98AD]">
+          {t('lineage.node.tableCount', { count: data.count })}
+        </span>
         <span className="flex items-center gap-0.5 text-[11px] text-[#55637A]">
-          展开
+          {t('lineage.node.expand')}
           <ChevronRight className="size-3" />
         </span>
       </div>

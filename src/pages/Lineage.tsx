@@ -7,6 +7,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Info } from 'lucide-react'
 import type { GraphResponse, TableLayer, TableListItem } from '@/lib/api'
 import { getLineageGraph, getLineageOverview, listTables } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 import { toast } from '@/components/common/Toast'
 import {
   AGGREGATE_THRESHOLD,
@@ -37,6 +38,7 @@ const EMPTY_LAYERS = new Set<TableLayer>()
 type PendingView = { type: 'fit' } | { type: 'center'; nodeId: number }
 
 export default function Lineage() {
+  const { t } = useT()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -135,7 +137,7 @@ export default function Lineage() {
           if (hit) {
             enterFocus(hit.id, hit.name, { select: true, center: 'node' })
           } else {
-            toast.error('未找到匹配的表', tableParam)
+            toast.error(t('lineage.toast.tableNotFound'), tableParam)
             setMode('overview')
             queueView({ type: 'fit' })
           }
@@ -148,7 +150,7 @@ export default function Lineage() {
         }
         bootedRef.current = true
       } catch (e) {
-        if (!cancelled) setBootError(e instanceof Error ? e.message : '网络请求失败')
+        if (!cancelled) setBootError(e instanceof Error ? e.message : t('lineage.error.networkFailed'))
       } finally {
         if (!cancelled) setBootLoading(false)
       }
@@ -174,7 +176,7 @@ export default function Lineage() {
     if (tableParam && tableParam !== focus?.name) {
       const hit = tableRefs.find((t) => t.name === tableParam)
       if (hit) enterFocus(hit.id, hit.name, { select: true, center: 'node' })
-      else toast.error('未找到匹配的表', tableParam)
+      else toast.error(t('lineage.toast.tableNotFound'), tableParam)
     } else if (!tableParam && searchParams.get('mode') === 'overview' && mode !== 'overview') {
       enterOverview()
     }
@@ -198,7 +200,7 @@ export default function Lineage() {
       .catch((e) => {
         if (fetchSeqRef.current !== seq) return
         setFocusGraph(null)
-        setFocusError(e instanceof Error ? e.message : '网络请求失败')
+        setFocusError(e instanceof Error ? e.message : t('lineage.error.networkFailed'))
       })
       .finally(() => {
         if (fetchSeqRef.current === seq) setFocusLoading(false)
@@ -459,20 +461,20 @@ export default function Lineage() {
       {aggregate && (
         <div className="absolute left-1/2 top-4 z-10 flex h-8 -translate-x-1/2 items-center gap-2 rounded-lg border border-[rgba(29,78,216,0.3)] bg-[rgba(37,99,235,0.15)] px-3 text-xs text-[#CBD5E1]">
           <Info className="size-3.5 shrink-0 text-[#8B98AD]" />
-          全量图包含 {overview?.nodes.length ?? 0} 张表,已按层聚合显示,建议搜索单表聚焦查看
+          {t('lineage.aggregate.hint', { count: overview?.nodes.length ?? 0 })}
         </div>
       )}
 
       {/* 孤表提示 */}
       {isolatedFocus && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-10 text-center">
-          <p className="text-xs text-[#8B98AD]">该表暂无上下游血缘</p>
+          <p className="text-xs text-[#8B98AD]">{t('lineage.isolated.hint')}</p>
           <button
             type="button"
             onClick={() => navigate('/sql')}
             className="pointer-events-auto mt-1 text-xs text-[#2DD4BF] hover:underline"
           >
-            提交关联 SQL
+            {t('lineage.isolated.action')}
           </button>
         </div>
       )}
@@ -495,8 +497,8 @@ export default function Lineage() {
           onDdlChange={(id) => navigate(`/changes?tab=create&table=${id}`)}
           onCopyName={async (name) => {
             const ok = await copyText(name)
-            if (ok) toast.success('已复制', name)
-            else toast.error('复制失败')
+            if (ok) toast.success(t('lineage.toast.copied'), name)
+            else toast.error(t('lineage.toast.copyFailed'))
           }}
         />
       )}

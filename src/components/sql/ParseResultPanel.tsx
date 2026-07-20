@@ -7,8 +7,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import type { LocalParseResult, StatementType } from './parsePreview'
+import type { LocalParseResult, ParseWarning, StatementType } from './parsePreview'
 import { layerOf } from './parsePreview'
 import { LayerBadge } from '@/components/common/LayerBadge'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -72,9 +73,8 @@ function lineRange(lineStart: number, lineEnd: number): string {
   return lineStart === lineEnd ? `L${lineStart}` : `L${lineStart}–L${lineEnd}`
 }
 
-function warningSuggestion(text: string): string {
-  if (text.includes('未指定目标表')) return '在解析配置中填写目标表名后重新解析'
-  return '检查该语句语法后重试;单条语句失败不会中断整体解析'
+function warningSuggestionKey(code: ParseWarning['code']): string {
+  return code === 'no_target' ? 'sql.result.suggestion.noTarget' : 'sql.result.suggestion.generic'
 }
 
 export interface ParseResultPanelProps {
@@ -87,6 +87,7 @@ export interface ParseResultPanelProps {
 }
 
 export function ParseResultPanel({ loading, mode, failed, local, summary, elapsedMs }: ParseResultPanelProps) {
+  const { t } = useT()
   const [tab, setTab] = useState('lineage')
 
   // 解析失败时警告 Tab 自动激活(sql.md §5);渲染期派生重置,避免 effect 级联渲染
@@ -110,7 +111,7 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
       {/* 卡片头 */}
       <div className="flex h-12 items-center justify-between border-b border-slate-200 px-4">
         <h2 className="text-[15px] font-semibold text-slate-900">
-          {mode === 'preview' ? '解析预览结果' : '解析结果'}
+          {t(mode === 'preview' ? 'sql.result.title.preview' : 'sql.result.title.submit')}
         </h2>
         <div className="flex items-center gap-3">
           {loading ? (
@@ -118,7 +119,7 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
           ) : failed ? (
             <StatusBadge status="parse_failed" />
           ) : mode === 'preview' ? (
-            <StatusBadge status="pending" label="预览 · 未入库" />
+            <StatusBadge status="pending" label={t('sql.result.previewBadge')} />
           ) : (
             <StatusBadge status="parsed" />
           )}
@@ -139,18 +140,18 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
         <>
           {mode === 'preview' && (
             <div className="border-b border-pending/20 bg-pending-light px-4 py-2 text-xs text-pending">
-              预览结果未入库,点击「提交解析」写入血缘
+              {t('sql.result.previewBanner')}
             </div>
           )}
 
           {/* 汇总条 */}
           {summary && (
             <div className="flex items-center divide-x divide-slate-200 border-b border-slate-100 py-3">
-              <SummaryChip label="目标表" value={failed ? '—' : summary.targets} />
-              <SummaryChip label="源表" value={failed ? '—' : summary.sources} />
-              <SummaryChip label="新建表" value={failed ? '—' : summary.tablesCreated} />
-              <SummaryChip label="新建边" value={failed || summary.edgesCreated === null ? '—' : summary.edgesCreated} />
-              <SummaryChip label="警告" value={summary.warnings} tone="warn" />
+              <SummaryChip label={t('sql.result.summary.targets')} value={failed ? '—' : summary.targets} />
+              <SummaryChip label={t('sql.result.summary.sources')} value={failed ? '—' : summary.sources} />
+              <SummaryChip label={t('sql.result.summary.tablesCreated')} value={failed ? '—' : summary.tablesCreated} />
+              <SummaryChip label={t('sql.result.summary.edgesCreated')} value={failed || summary.edgesCreated === null ? '—' : summary.edgesCreated} />
+              <SummaryChip label={t('sql.result.summary.warnings')} value={summary.warnings} tone="warn" />
             </div>
           )}
 
@@ -160,9 +161,9 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
               value={tab}
               onChange={setTab}
               items={[
-                { key: 'lineage', label: '血缘明细' },
-                { key: 'columns', label: '字段映射' },
-                { key: 'warnings', label: '警告', count: summary?.warnings ?? 0, countTone: 'pending' },
+                { key: 'lineage', label: t('sql.result.tab.lineage') },
+                { key: 'columns', label: t('sql.result.tab.columns') },
+                { key: 'warnings', label: t('sql.result.tab.warnings'), count: summary?.warnings ?? 0, countTone: 'pending' },
               ]}
             />
           </div>
@@ -171,7 +172,7 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
             {tab === 'lineage' && (
               <div>
                 {pairs.length === 0 ? (
-                  <p className="py-8 text-center text-[13px] text-slate-400">本次脚本未产生血缘边</p>
+                  <p className="py-8 text-center text-[13px] text-slate-400">{t('sql.result.lineageEmpty')}</p>
                 ) : (
                   local?.statements.map((s) => {
                     const target = s.target
@@ -209,14 +210,14 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
             {tab === 'columns' && (
               <div>
                 {!local || local.columnMappings.length === 0 ? (
-                  <p className="py-8 text-center text-[13px] text-slate-400">未抽取到列级映射</p>
+                  <p className="py-8 text-center text-[13px] text-slate-400">{t('sql.result.columnsEmpty')}</p>
                 ) : (
                   <table className="w-full">
                     <thead>
                       <tr className="h-8 border-b border-slate-100 text-left text-xs font-medium text-slate-500">
-                        <th className="w-1/4 pr-3">目标列</th>
-                        <th className="w-2/5 pr-3">源列</th>
-                        <th>表达式</th>
+                        <th className="w-1/4 pr-3">{t('sql.result.columns.target')}</th>
+                        <th className="w-2/5 pr-3">{t('sql.result.columns.source')}</th>
+                        <th>{t('sql.result.columns.expression')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -237,7 +238,7 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
                               <span className="flex items-center gap-1.5">
                                 <span className="max-w-[320px] truncate font-mono">{m.expression}</span>
                                 <span className="shrink-0 rounded bg-slate-100 px-1 py-px text-[10px] font-medium text-slate-500">
-                                  表达式
+                                  {t('sql.result.columns.expression')}
                                 </span>
                               </span>
                             ) : (
@@ -255,7 +256,7 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
             {tab === 'warnings' && (
               <div>
                 {!local || local.warnings.length === 0 ? (
-                  <p className="py-8 text-center text-[13px] text-slate-400">没有警告,解析通过</p>
+                  <p className="py-8 text-center text-[13px] text-slate-400">{t('sql.result.warningsEmpty')}</p>
                 ) : (
                   local.warnings.map((w, i) => (
                     <div key={i} className="flex gap-2 border-b border-slate-100 py-2.5 last:border-b-0">
@@ -267,8 +268,8 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
                         <AlertTriangle className={cn('mt-0.5 size-3.5 shrink-0', failed && i === 0 ? 'text-danger' : 'text-sqlwarn')} />
                       </motion.span>
                       <div>
-                        <p className={cn('text-[13px]', failed && i === 0 ? 'text-danger' : 'text-slate-900')}>{w}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">{warningSuggestion(w)}</p>
+                        <p className={cn('text-[13px]', failed && i === 0 ? 'text-danger' : 'text-slate-900')}>{w.text}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{t(warningSuggestionKey(w.code))}</p>
                       </div>
                     </div>
                   ))
@@ -281,7 +282,7 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
           {pairs.length > 0 && (
             <div className="border-t border-slate-100 px-4 py-3">
               <div className="mb-2">
-                <span className="text-xs font-medium text-slate-500">血缘速览</span>
+                <span className="text-xs font-medium text-slate-500">{t('sql.result.dagTitle')}</span>
               </div>
               <MiniDag pairs={pairs} />
               {focusTarget && (
@@ -290,7 +291,7 @@ export function ParseResultPanel({ loading, mode, failed, local, summary, elapse
                     to={`/lineage?table=${encodeURIComponent(focusTarget)}`}
                     className="text-xs text-primary-600 hover:underline underline-offset-4"
                   >
-                    在血缘图谱中查看 →
+                    {t('sql.result.viewInGraph')}
                   </Link>
                 </div>
               )}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Copy, FileDiff, Info, Settings2 } from 'lucide-react'
+import { useT } from '@/lib/i18n'
 
 export interface ContextMenuState {
   x: number
@@ -28,6 +29,7 @@ export function NodeContextMenu({
   onDdlChange: (tableId: number) => void
   onCopyName: (tableName: string) => void
 }) {
+  const { t } = useT()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -46,10 +48,10 @@ export function NodeContextMenu({
   }, [onClose])
 
   const items = [
-    { label: '查看表详情', icon: Info, action: () => onViewDetail(menu.tableId) },
-    { label: '在元数据中配置', icon: Settings2, action: () => onConfigure(menu.tableId) },
-    { label: '发起 DDL 变更', icon: FileDiff, action: () => onDdlChange(menu.tableId) },
-    { label: '复制表名', icon: Copy, action: () => onCopyName(menu.tableName) },
+    { label: t('lineage.action.viewDetail'), icon: Info, action: () => onViewDetail(menu.tableId) },
+    { label: t('lineage.action.configure'), icon: Settings2, action: () => onConfigure(menu.tableId) },
+    { label: t('lineage.action.ddlChange'), icon: FileDiff, action: () => onDdlChange(menu.tableId) },
+    { label: t('lineage.action.copyName'), icon: Copy, action: () => onCopyName(menu.tableName) },
   ]
 
   return (
