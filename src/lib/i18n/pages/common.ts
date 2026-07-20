@@ -20,6 +20,7 @@ export const zh: Record<string, string> = {
   'common.button.approve': '通过',
   'common.button.reject': '驳回',
   'common.button.detail': '详情',
+  'common.button.login': '登录',
   // ---------- 通用 ----------
   'common.close': '关闭', // 图标按钮 aria-label(Modal/Drawer/Toast)
   'common.loading': '加载中…',
@@ -76,6 +77,7 @@ export const en: Record<string, string> = {
   'common.button.approve': 'Approve',
   'common.button.reject': 'Reject',
   'common.button.detail': 'Details',
+  'common.button.login': 'Sign in',
   // ---------- Generic ----------
   'common.close': 'Close',
   'common.loading': 'Loading…',

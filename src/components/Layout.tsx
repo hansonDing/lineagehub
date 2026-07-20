@@ -3,12 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   Bell,
-  Check,
-  ChevronDown,
   Database,
   FileCode2,
   GitPullRequest,
   LayoutDashboard,
+  LogOut,
   Network,
   Search,
 } from 'lucide-react'
@@ -27,8 +26,9 @@ import { Avatar } from '@/components/common/Avatar'
 import { LayerBadge } from '@/components/common/LayerBadge'
 import { Toaster } from '@/components/common/Toast'
 import { LangSwitcher } from '@/components/LangSwitcher'
+import { Button } from '@/components/ui/button'
 import { useT } from '@/lib/i18n'
-import { DEMO_USERS, useUser } from '@/hooks/useUser'
+import { useUser } from '@/hooks/useUser'
 
 /** 审批收件箱刷新事件:审批操作后 dispatch 以更新侧栏徽标 */
 export const APPROVALS_REFRESH_EVENT = 'lineagehub:approvals-refresh'
@@ -59,7 +59,7 @@ function SidebarSection({ children }: { children: ReactNode }) {
   return <div className="px-3">{children}</div>
 }
 
-function Sidebar({ pendingCount, user }: { pendingCount: number; user: string }) {
+function Sidebar({ pendingCount, user, role }: { pendingCount: number; user: string; role: string }) {
   const { t } = useT()
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-[232px] flex-col bg-ink">
@@ -119,12 +119,12 @@ function Sidebar({ pendingCount, user }: { pendingCount: number; user: string })
             </div>
             <div className="mt-1 pl-3.5 font-mono text-xs text-[#8B98AD]">dialect = spark</div>
           </div>
-          {/* 当前用户卡 */}
+          {/* 当前用户卡:登录用户(姓名 + 角色) */}
           <div className="flex items-center gap-2.5 px-2">
             <Avatar name={user} size={28} />
             <div className="min-w-0 leading-tight">
               <div className="truncate text-[13px] text-[#CBD5E1]">{user}</div>
-              <div className="text-[11px] text-[#55637A]">{t('layout.user.role')}</div>
+              <div className="truncate text-[11px] text-[#55637A]">{role}</div>
             </div>
           </div>
         </div>
@@ -300,21 +300,17 @@ function SearchRow({ children, onClick }: { children: ReactNode; onClick: () => 
   )
 }
 
-// ---------- 用户切换 ----------
+// ---------- 登录用户卡(顶栏右侧:通知 + 用户 + 登出) ----------
 
-function UserSwitcher({ pendingCount }: { pendingCount: number }) {
+function UserMenu({ pendingCount }: { pendingCount: number }) {
   const { t } = useT()
-  const { user, setUser } = useUser()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const { user, role, logout } = useUser()
+  const navigate = useNavigate()
 
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [])
+  const handleLogout = () => {
+    logout() // 清除 localStorage token 与内存态
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="flex items-center gap-3">
@@ -329,37 +325,19 @@ function UserSwitcher({ pendingCount }: { pendingCount: number }) {
           <span className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-pending" />
         )}
       </button>
-      {/* 用户头像 + 身份切换 */}
-      <div ref={ref} className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 rounded p-0.5 transition-colors duration-120 hover:bg-slate-100"
-        >
-          <Avatar name={user} size={28} />
-          <ChevronDown className="size-3.5 text-slate-400" />
-        </button>
-        {open && (
-          <div className="absolute right-0 top-10 z-50 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-overlay">
-            <div className="px-3 pb-1 pt-2 text-[11px] text-slate-400">{t('layout.user.switch')}</div>
-            {DEMO_USERS.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => {
-                  setUser(name)
-                  setOpen(false)
-                }}
-                className="flex h-9 w-full items-center gap-2 px-3 text-left text-[13px] text-slate-700 transition-colors duration-120 hover:bg-slate-50"
-              >
-                <Avatar name={name} size={24} />
-                <span className="flex-1">{name}</span>
-                {name === user && <Check className="size-3.5 text-primary-600" />}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* 登录用户(头像 + 姓名/角色) */}
+      <div className="flex items-center gap-2">
+        <Avatar name={user} size={28} />
+        <div className="hidden leading-tight md:block">
+          <div className="text-[13px] font-medium text-slate-900">{user}</div>
+          <div className="text-[11px] text-slate-500">{role}</div>
+        </div>
       </div>
+      {/* 登出:清 token 跳 /login */}
+      <Button variant="ghost" size="sm" onClick={handleLogout} aria-label={t('layout.user.logout')}>
+        <LogOut className="size-3.5" />
+        {t('layout.user.logout')}
+      </Button>
     </div>
   )
 }
@@ -369,7 +347,7 @@ function UserSwitcher({ pendingCount }: { pendingCount: number }) {
 export default function Layout() {
   const location = useLocation()
   const { t } = useT()
-  const { user } = useUser()
+  const { user, role } = useUser()
   const [pendingCount, setPendingCount] = useState(0)
   const [demoMode, setDemoMode] = useState(isDemoMode())
 
@@ -405,7 +383,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-[100dvh] bg-slate-50">
-      <Sidebar pendingCount={pendingCount} user={user} />
+      <Sidebar pendingCount={pendingCount} user={user} role={role} />
       <div className="pl-[232px]">
         {/* 顶栏 */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-slate-200 bg-white px-6">
@@ -434,7 +412,7 @@ export default function Layout() {
               {t('layout.env.demo')}
             </span>
           )}
-          <UserSwitcher pendingCount={pendingCount} />
+          <UserMenu pendingCount={pendingCount} />
         </header>
         {/* 内容区:血缘图谱页 0 padding 撑满画布 */}
         <main className={isCanvasPage ? 'h-[calc(100dvh-56px)]' : 'p-6'}>

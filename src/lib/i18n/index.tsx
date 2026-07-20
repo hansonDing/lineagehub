@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { zh as commonZh, en as commonEn } from './pages/common'
 import { zh as layoutZh, en as layoutEn } from './pages/layout'
+import { zh as loginZh, en as loginEn } from './pages/login'
 import { zh as dashboardZh, en as dashboardEn } from './pages/dashboard'
 import { zh as lineageZh, en as lineageEn } from './pages/lineage'
 import { zh as sqlZh, en as sqlEn } from './pages/sql'
@@ -31,6 +32,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
   zh: {
     ...commonZh,
     ...layoutZh,
+    ...loginZh,
     ...dashboardZh,
     ...lineageZh,
     ...sqlZh,
@@ -40,6 +42,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
   en: {
     ...commonEn,
     ...layoutEn,
+    ...loginEn,
     ...dashboardEn,
     ...lineageEn,
     ...sqlEn,

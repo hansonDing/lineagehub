@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   FileCode2,
+  FolderInput,
   History,
   RefreshCw,
   Search,
@@ -19,8 +20,10 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { GraphResponse, SqlScript, SqlScriptDetail } from '@/lib/api'
+import type { BatchImportResponse, GraphResponse, SqlScript, SqlScriptDetail } from '@/lib/api'
 import {
+  ApiError,
+  batchImport,
   deleteScript,
   getLineageOverview,
   getScript,
@@ -82,6 +85,31 @@ interface ScriptLineage {
   edgeCount: number
 }
 
+/** 批量导入汇总 chip(结果视图顶部统计) */
+function ImportSummaryChip({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'slate' | 'success' | 'warning' | 'danger' | 'primary'
+}) {
+  const tones = {
+    slate: 'bg-slate-100 text-slate-700',
+    success: 'bg-success-light text-success',
+    warning: 'bg-sqlwarn-light text-sqlwarn',
+    danger: 'bg-danger-light text-danger',
+    primary: 'bg-primary-50 text-primary-700',
+  } as const
+  return (
+    <span className={cn('inline-flex h-6 items-center gap-1.5 rounded px-2 text-xs', tones[tone])}>
+      {label}
+      <span className="font-mono font-semibold tabular-nums">{value}</span>
+    </span>
+  )
+}
+
 export default function Sql() {
   const { t } = useT()
   const { user } = useUser()
@@ -122,6 +150,14 @@ export default function Sql() {
   const [deleting, setDeleting] = useState<SqlScript | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [reparsingId, setReparsingId] = useState<number | null>(null)
+
+  // ---------- 批量导入 ----------
+  const [importOpen, setImportOpen] = useState(false)
+  const [importDir, setImportDir] = useState('')
+  const [importRecursive, setImportRecursive] = useState(true)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importError, setImportError] = useState('')
+  const [importResult, setImportResult] = useState<BatchImportResponse | null>(null)
 
   const resultRef = useRef<HTMLDivElement>(null)
   const editorWrapRef = useRef<HTMLDivElement>(null)
@@ -388,6 +424,45 @@ export default function Sql() {
     }
   }
 
+  // ---------- 批量导入 ----------
+  const openImport = () => {
+    setImportError('')
+    setImportResult(null)
+    setImportLoading(false)
+    setImportOpen(true)
+  }
+
+  const handleImport = async () => {
+    const dir = importDir.trim()
+    if (!dir) {
+      setImportError(t('sql.import.dirRequired'))
+      return
+    }
+    setImportLoading(true)
+    setImportError('')
+    try {
+      const res = await batchImport({ dir_path: dir, recursive: importRecursive })
+      setImportResult(res)
+      toast.success(
+        t('sql.import.toast.done'),
+        t('sql.import.toast.doneDesc', {
+          ok: res.summary.ok,
+          warning: res.summary.warning,
+          error: res.summary.error,
+          edges: res.summary.edges_created,
+        }),
+      )
+      // 导入落库后刷新脚本列表与血缘概览
+      await refreshAll()
+    } catch (err) {
+      // 404 目录不存在等业务错误:表单内联红字,不关弹窗
+      setImportResult(null)
+      setImportError(err instanceof ApiError && err.message ? err.message : t('sql.import.toast.failed'))
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   // ---------- 抽屉 ----------
   const openDrawer = (script: SqlScript) => {
     setDrawerScript(script)
@@ -626,6 +701,10 @@ export default function Sql() {
                   {t('sql.config.supported')}
                 </div>
                 <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                  <Button variant="ghost" onClick={openImport} className="mr-auto" disabled={parsing || previewing}>
+                    <FolderInput className="size-3.5" />
+                    {t('sql.import.button')}
+                  </Button>
                   <Button variant="secondary" onClick={handlePreview} loading={previewing} disabled={parsing}>
                     {t('sql.config.preview')}
                   </Button>
@@ -745,6 +824,148 @@ export default function Sql() {
             : undefined
         }
       />
+
+      {/* 批量导入模态:目录 + 递归 → 逐文件解析落库,结果汇总 + 明细 */}
+      <Modal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        width={720}
+        title={importResult ? t('sql.import.result.title') : t('sql.import.title')}
+        footer={
+          importResult ? (
+            <>
+              <Button variant="ghost" onClick={() => setImportResult(null)}>
+                {t('sql.import.again')}
+              </Button>
+              <Button onClick={() => setImportOpen(false)}>{t('sql.import.done')}</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setImportOpen(false)}>
+                {t('common.button.cancel')}
+              </Button>
+              <Button onClick={() => void handleImport()} loading={importLoading}>
+                <FolderInput className="size-3.5" />
+                {importLoading ? t('sql.import.importing') : t('sql.import.submit')}
+              </Button>
+            </>
+          )
+        }
+      >
+        {!importResult ? (
+          /* ---------- 表单视图 ---------- */
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-slate-700">
+                {t('sql.import.dir.label')}
+              </label>
+              <input
+                value={importDir}
+                onChange={(e) => {
+                  setImportDir(e.target.value)
+                  setImportError('')
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleImport()
+                  }
+                }}
+                placeholder={t('sql.import.dir.placeholder')}
+                autoFocus
+                className={cn(
+                  'h-8 w-full rounded-md border bg-white px-2.5 font-mono text-[13px] text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:ring-2 focus:ring-[rgba(13,148,136,0.30)]',
+                  importError ? 'border-danger' : 'border-slate-300 focus:border-primary-600',
+                )}
+              />
+              {importError ? (
+                <p className="mt-1.5 text-xs text-danger">{importError}</p>
+              ) : (
+                <p className="mt-1.5 text-xs text-slate-500">{t('sql.import.dir.hint')}</p>
+              )}
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
+              <input
+                type="checkbox"
+                checked={importRecursive}
+                onChange={(e) => setImportRecursive(e.target.checked)}
+                className="size-3.5 accent-primary-700"
+              />
+              {t('sql.import.recursive')}
+            </label>
+          </div>
+        ) : (
+          /* ---------- 结果视图 ---------- */
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <ImportSummaryChip tone="slate" label={t('sql.import.summary.total')} value={importResult.summary.total} />
+              <ImportSummaryChip tone="success" label={t('sql.import.summary.ok')} value={importResult.summary.ok} />
+              <ImportSummaryChip tone="warning" label={t('sql.import.summary.warning')} value={importResult.summary.warning} />
+              <ImportSummaryChip tone="danger" label={t('sql.import.summary.error')} value={importResult.summary.error} />
+              <ImportSummaryChip tone="primary" label={t('sql.import.summary.edges')} value={importResult.summary.edges_created} />
+            </div>
+            {importResult.results.length === 0 ? (
+              <p className="py-8 text-center text-[13px] text-slate-500">{t('sql.import.empty')}</p>
+            ) : (
+              <div className="overflow-hidden rounded-md border border-slate-200">
+                <table className="w-full text-left text-[13px]">
+                  <thead>
+                    <tr className="h-9 border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
+                      <th className="w-20 px-3">{t('sql.import.col.status')}</th>
+                      <th className="px-3">{t('sql.import.col.file')}</th>
+                      <th className="px-3">{t('sql.import.col.lineage')}</th>
+                      <th className="w-16 px-3 text-right">{t('sql.import.col.edges')}</th>
+                      <th className="w-40 px-3">{t('sql.import.col.message')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importResult.results.map((r) => (
+                      <tr
+                        key={r.file}
+                        className={cn(
+                          'h-9 border-b border-slate-100 last:border-0',
+                          r.status === 'error' && 'bg-danger-light/60',
+                        )}
+                      >
+                        <td className="px-3">
+                          {r.status === 'ok' && <StatusBadge status="parsed" label={t('sql.import.status.ok')} />}
+                          {r.status === 'warning' && <StatusBadge status="warning" label={t('sql.import.status.warning')} />}
+                          {r.status === 'error' && <StatusBadge status="parse_failed" label={t('sql.import.status.error')} />}
+                        </td>
+                        <td className="max-w-0 truncate px-3 font-mono text-xs text-slate-900" title={r.file}>
+                          {r.file}
+                        </td>
+                        <td
+                          className="max-w-0 truncate px-3 font-mono text-xs text-slate-700"
+                          title={`${r.source_tables.join(', ')} → ${r.target_tables.join(', ')}`}
+                        >
+                          {r.source_tables.join(', ') || '—'} → {r.target_tables.join(', ') || '—'}
+                        </td>
+                        <td className="px-3 text-right font-mono text-xs tabular-nums text-slate-700">
+                          {r.edges_created}
+                        </td>
+                        <td className="max-w-0 truncate px-3 text-xs">
+                          {r.error ? (
+                            <span className="text-danger" title={r.error}>
+                              {r.error}
+                            </span>
+                          ) : r.warnings.length > 0 ? (
+                            <span className="text-sqlwarn" title={r.warnings.join('\n')}>
+                              {r.warnings.length} × {t('common.status.warning')}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* 删除确认模态(非名称二次确认,仅系统/报表需要) */}
       <Modal

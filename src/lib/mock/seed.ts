@@ -130,6 +130,57 @@ export const SEED_TABLE_OWNERS: Record<string, string> = {
   'ads.ads_user_repurchase': '王五',
 }
 
+// ---------------------------------------------------------------- 鉴权(与 backend/app/routers/auth.py PRESET_USERS 一致)
+export const SEED_AUTH_USERS: { name: string; role: string }[] = [
+  { name: '张三', role: '数据工程师' },
+  { name: '李四', role: '数据工程师' },
+  { name: '王五', role: '数据分析师' },
+  { name: '赵六', role: '系统负责人' },
+  { name: '孙七', role: '系统负责人' },
+  { name: '周八', role: 'BI 工程师' },
+  { name: '吴九', role: '财务分析师' },
+]
+
+/** 演示模式统一登录密码(对齐后端 AUTH_PASSWORD 默认值) */
+export const MOCK_AUTH_PASSWORD = 'lineagehub123'
+
+// ---------------------------------------------------------------- 批量导入虚拟目录(demo 专属)
+// 演示模式没有真实文件系统:任意 dir_path 都映射到这两个内置示例文件,
+// SQL 文本真实走 engine 解析落库(与后端 _import_one_file 同口径,幂等)。
+export const BATCH_ETL_DWD_CAMPAIGN = `-- 营销活动明细:订单按投放活动归因
+INSERT OVERWRITE TABLE dwd.dwd_campaign_detail
+SELECT
+    o.order_id,
+    o.user_id,
+    u.user_name,
+    r.region_name,
+    CASE
+        WHEN u.region_code IN ('110000', '310000') THEN 'campaign_key_city'
+        ELSE 'campaign_default'
+    END AS campaign_id,
+    o.total_amount,
+    o.dt
+FROM ods.ods_trade_order o
+JOIN ods.ods_user_info u ON o.user_id = u.user_id
+LEFT JOIN dim.dim_region r ON u.region_code = r.region_code`
+
+export const BATCH_ADS_CAMPAIGN_EFFECT = `-- 活动效果:按活动与分区日期汇总下单与 GMV
+INSERT OVERWRITE TABLE ads.ads_campaign_effect
+SELECT
+    dt,
+    campaign_id,
+    COUNT(DISTINCT order_id) AS order_cnt,
+    COUNT(DISTINCT user_id) AS buyer_cnt,
+    SUM(total_amount) AS gmv
+FROM dwd.dwd_campaign_detail
+GROUP BY dt, campaign_id`
+
+/** 虚拟目录文件清单:file = 相对路径(脚本名为去后缀的相对路径,同后端) */
+export const BATCH_IMPORT_FILES: { file: string; sql_text: string }[] = [
+  { file: 'ads/ads_campaign_effect.sql', sql_text: BATCH_ADS_CAMPAIGN_EFFECT },
+  { file: 'dwd/etl_dwd_campaign.sql', sql_text: BATCH_ETL_DWD_CAMPAIGN },
+]
+
 // ---------------------------------------------------------------- 报表
 export const SEED_REPORTS: {
   name: string

@@ -1,23 +1,90 @@
 import type { ReactNode } from 'react'
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import type { AuthUserInfo, StoredAuth } from '@/lib/auth'
+import { clearStoredAuth, getStoredAuth, storeAuth } from '@/lib/auth'
+import { getMe, login as apiLogin } from '@/lib/api'
 
 /**
  * 全局当前登录用户(design.md §2 全局状态)
- * 默认「张三」,顶栏可切换身份以便演示;审批收件箱按其过滤
+ * 登录即身份:凭证持久化在 localStorage(lineagehub-auth),
+ * 顶栏展示登录用户 + 登出;审批收件箱按 user(姓名)过滤。
+ * 未登录态:user 为空串、token 为 null,由路由守卫重定向到 /login。
  */
 
-export const DEMO_USERS = ['张三', '李四', '王五', '赵六', '孙七', '周八', '吴九'] as const
+/** 演示用户(与后端 PRESET_USERS 一致;登录页拉取失败时的兜底展示) */
+export const DEMO_USERS: AuthUserInfo[] = [
+  { name: '张三', role: '数据工程师' },
+  { name: '李四', role: '数据工程师' },
+  { name: '王五', role: '数据分析师' },
+  { name: '赵六', role: '系统负责人' },
+  { name: '孙七', role: '系统负责人' },
+  { name: '周八', role: 'BI 工程师' },
+  { name: '吴九', role: '财务分析师' },
+]
 
 interface UserContextValue {
+  /** 当前用户姓名(未登录为空串);兼容旧消费:审批过滤、提交人展示 */
   user: string
-  setUser: (name: string) => void
+  /** 当前用户角色(未登录为空串) */
+  role: string
+  /** Bearer token(未登录为 null) */
+  token: string | null
+  isAuthenticated: boolean
+  /** 登录:成功写入 localStorage 并返回用户;失败抛 ApiError(401 等) */
+  login: (username: string, password: string) => Promise<AuthUserInfo>
+  /** 登出:清除本地凭证与内存态(调用方负责跳 /login) */
+  logout: () => void
 }
 
-const UserContext = createContext<UserContextValue>({ user: '张三', setUser: () => {} })
+const UserContext = createContext<UserContextValue>({
+  user: '',
+  role: '',
+  token: null,
+  isAuthenticated: false,
+  login: async () => ({ name: '', role: '' }),
+  logout: () => {},
+})
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<string>('张三')
-  const value = useMemo(() => ({ user, setUser }), [user])
+  const [auth, setAuth] = useState<StoredAuth | null>(() => getStoredAuth())
+
+  // 启动时校验本地 token 有效性;/auth/me 401 时 api 层已清除 localStorage,这里同步内存态
+  useEffect(() => {
+    if (!getStoredAuth()) return
+    let cancelled = false
+    getMe()
+      .then((me) => {
+        if (cancelled) return
+        setAuth((cur) => (cur ? { ...cur, user: { name: me.name, role: me.role } } : cur))
+      })
+      .catch(() => {
+        if (!cancelled) setAuth(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const value = useMemo<UserContextValue>(
+    () => ({
+      user: auth?.user.name ?? '',
+      role: auth?.user.role ?? '',
+      token: auth?.token ?? null,
+      isAuthenticated: auth !== null,
+      login: async (username, password) => {
+        const res = await apiLogin({ username, password })
+        const next: StoredAuth = { token: res.token, user: res.user }
+        storeAuth(next)
+        setAuth(next)
+        return res.user
+      },
+      logout: () => {
+        clearStoredAuth()
+        setAuth(null)
+      },
+    }),
+    [auth],
+  )
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>
 }
 

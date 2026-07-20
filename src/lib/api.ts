@@ -9,6 +9,7 @@
  */
 
 import { toast } from '@/components/common/Toast'
+import { clearStoredAuth, getStoredAuth } from './auth'
 import * as mock from './mock/handlers'
 
 // ---------- 类型(与 architecture.md 第 1 节数据模型对应) ----------
@@ -219,6 +220,45 @@ export interface ImpactDetail {
   approvals: ApprovalTask[]
 }
 
+/** 鉴权用户(GET /auth/users、POST /auth/login、GET /auth/me) */
+export interface AuthUser {
+  name: string
+  role: string
+}
+
+/** 登录响应(POST /auth/login) */
+export interface LoginResponse {
+  token: string
+  user: AuthUser
+}
+
+/** 批量导入单文件结果状态(POST /scripts/batch-import) */
+export type BatchImportStatus = 'ok' | 'warning' | 'error'
+
+export interface BatchImportResultItem {
+  file: string
+  script_id: number | null
+  status: BatchImportStatus
+  target_tables: string[]
+  source_tables: string[]
+  edges_created: number
+  warnings: string[]
+  error: string | null
+}
+
+export interface BatchImportSummary {
+  total: number
+  ok: number
+  warning: number
+  error: number
+  edges_created: number
+}
+
+export interface BatchImportResponse {
+  summary: BatchImportSummary
+  results: BatchImportResultItem[]
+}
+
 /** 仪表盘统计(GET /dashboard/stats) */
 export interface LayerDistribution {
   layer: TableLayer
@@ -279,9 +319,14 @@ async function request<T>(
   } = {},
 ): Promise<T> {
   const { method = 'GET', query, body } = options
+  // 已登录请求自动携带 Bearer token(localStorage lineagehub-auth)
+  const headers: Record<string, string> = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const token = getStoredAuth()?.token
+  if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(buildUrl(path, query), {
     method,
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -351,6 +396,32 @@ async function withFallback<T>(real: () => Promise<T>, fallback: () => Promise<T
     return fallback()
   }
 }
+
+// ---------- 鉴权 ----------
+
+export const getAuthUsers = () =>
+  withFallback(() => request<AuthUser[]>('/auth/users'), mock.getAuthUsers)
+
+export const login = (payload: { username: string; password: string }) =>
+  withFallback(
+    () => request<LoginResponse>('/auth/login', { method: 'POST', body: payload }),
+    () => mock.login(payload),
+  )
+
+/** 当前登录用户;401(token 无效/过期)时清除本地登录态后再抛出 */
+export const getMe = () =>
+  withFallback(
+    () =>
+      request<AuthUser>('/auth/me').catch((err) => {
+        if (err instanceof ApiError && err.status === 401) clearStoredAuth()
+        throw err
+      }),
+    () =>
+      mock.getMe().catch((err) => {
+        if (err instanceof mock.MockApiError && err.status === 401) clearStoredAuth()
+        throw err
+      }),
+  )
 
 // ---------- 系统 ----------
 
@@ -437,6 +508,13 @@ export const deleteScript = (id: number) =>
   withFallback(
     () => request<void>(`/scripts/${id}`, { method: 'DELETE' }),
     () => mock.deleteScript(id),
+  )
+
+/** 批量导入目录下的 .sql 文件(逐文件解析落库,幂等;目录不存在 404) */
+export const batchImport = (payload: { dir_path: string; recursive: boolean }) =>
+  withFallback(
+    () => request<BatchImportResponse>('/scripts/batch-import', { method: 'POST', body: payload }),
+    () => mock.batchImport(payload),
   )
 
 // ---------- 报表 ----------

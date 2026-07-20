@@ -11,8 +11,7 @@ export const zh: Record<string, string> = {
   'layout.nav.metadata': '元数据配置',
   'layout.nav.changes': '变更与审批',
   'layout.engine.name': '解析引擎 · sqlglot', // 侧栏引擎状态卡
-  'layout.user.role': '数据工程师', // 用户卡角色
-  'layout.user.switch': '切换身份(演示)',
+  'layout.user.logout': '登出', // 顶栏登出按钮
   // ---------- 顶栏搜索 ----------
   'layout.search.placeholder': '搜索表 / 报表 / 系统…',
   'layout.search.empty': '未找到匹配的结果',
@@ -36,8 +35,7 @@ export const en: Record<string, string> = {
   'layout.nav.metadata': 'Metadata',
   'layout.nav.changes': 'Changes & Approvals',
   'layout.engine.name': 'Parser Engine · sqlglot',
-  'layout.user.role': 'Data Engineer',
-  'layout.user.switch': 'Switch user (demo)',
+  'layout.user.logout': 'Sign out',
   // ---------- Topbar search ----------
   'layout.search.placeholder': 'Search tables / reports / systems…',
   'layout.search.empty': 'No matching results',

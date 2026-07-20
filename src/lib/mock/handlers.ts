@@ -8,6 +8,9 @@ import type {
   ApprovalDecision,
   ApprovalInboxItem,
   ApprovalStatus,
+  AuthUser,
+  BatchImportResponse,
+  BatchImportResultItem,
   ChangeDiff,
   ChangeEvent,
   ChangeEventSummary,
@@ -18,6 +21,7 @@ import type {
   HotTable,
   ImpactDetail,
   LineageEdge,
+  LoginResponse,
   ParseResult,
   Report,
   ReportListItem,
@@ -29,6 +33,7 @@ import type {
   TableLayer,
   TableListItem,
 } from '@/lib/api'
+import { getStoredAuth } from '@/lib/auth'
 import {
   applyChange,
   columnsOf,
@@ -42,6 +47,7 @@ import {
   renderDdl,
   type MockState,
 } from './engine'
+import { BATCH_IMPORT_FILES, MOCK_AUTH_PASSWORD, SEED_AUTH_USERS } from './seed'
 import { getState, persist } from './store'
 
 // ---------------------------------------------------------------- 错误(与 ApiError 同构:status + message)
@@ -216,6 +222,44 @@ function changeDetail(state: MockState, event: ChangeEvent): ImpactDetail {
     impacted_tables: impactedTables,
     approvals,
   }
+}
+
+// ---------------------------------------------------------------- 鉴权(对齐 backend/app/routers/auth.py)
+
+/** mock token:`mock.{encodeURIComponent(username)}.{issued_at}`,有效期 24h(与后端 TTL 一致) */
+const MOCK_TOKEN_TTL_MS = 24 * 3600 * 1000
+
+function issueMockToken(username: string): string {
+  return `mock.${encodeURIComponent(username)}.${Date.now()}`
+}
+
+export async function getAuthUsers(): Promise<AuthUser[]> {
+  return SEED_AUTH_USERS.map((u) => ({ ...u }))
+}
+
+export async function login(payload: { username: string; password: string }): Promise<LoginResponse> {
+  // 用户不存在与密码错误不区分(口径同后端)
+  const user = SEED_AUTH_USERS.find((u) => u.name === payload.username)
+  if (!user || payload.password !== MOCK_AUTH_PASSWORD) fail(401, '用户名或密码错误')
+  return { token: issueMockToken(user.name), user: { ...user } }
+}
+
+export async function getMe(): Promise<AuthUser> {
+  const token = getStoredAuth()?.token ?? ''
+  const parts = token.split('.')
+  if (parts.length !== 3 || parts[0] !== 'mock' || !parts[1] || !parts[2]) fail(401, '无效的 token')
+  let username = ''
+  try {
+    username = decodeURIComponent(parts[1])
+  } catch {
+    fail(401, '无效的 token')
+  }
+  const user = SEED_AUTH_USERS.find((u) => u.name === username)
+  if (!user) fail(401, '无效的 token')
+  const issuedAt = Number(parts[2])
+  if (!Number.isFinite(issuedAt)) fail(401, '无效的 token')
+  if (Date.now() - issuedAt > MOCK_TOKEN_TTL_MS) fail(401, 'token 已过期')
+  return { ...user }
 }
 
 // ---------------------------------------------------------------- 系统
@@ -422,6 +466,65 @@ export async function deleteScript(id: number): Promise<void> {
   state.edges = state.edges.filter((e) => e.script_id !== id)
   state.scripts = state.scripts.filter((s) => s.id !== id)
   persist()
+}
+
+/**
+ * 批量导入(演示模式):浏览器内没有真实文件系统,任意 dir_path 都映射到
+ * seed.BATCH_IMPORT_FILES 虚拟目录;每个文件真实走 engine 解析落库,
+ * 同名脚本按更新处理(版本 +1、边增量同步,幂等)——口径同后端 _import_one_file。
+ */
+export async function batchImport(payload: { dir_path: string; recursive: boolean }): Promise<BatchImportResponse> {
+  const raw = (payload.dir_path ?? '').trim()
+  if (!raw) fail(404, '目录不存在或不是目录')
+  const state = getState()
+  const results: BatchImportResultItem[] = []
+  for (const { file, sql_text } of BATCH_IMPORT_FILES) {
+    // 脚本名 = 相对路径去 .sql 后缀(同后端)
+    const name = file.replace(/\.sql$/i, '')
+    const result = engineParse(sql_text)
+    const now = nowIso()
+    let script = state.scripts.find((s) => s.name === name)
+    if (!script) {
+      script = {
+        id: nextId(state, 'script'),
+        name,
+        sql_type: detectSqlType(result),
+        sql_text,
+        target_table: null,
+        version: 1,
+        created_at: now,
+        updated_at: now,
+      }
+      state.scripts.push(script)
+    } else {
+      script.sql_text = sql_text
+      script.sql_type = detectSqlType(result)
+      script.version = (script.version || 1) + 1
+      script.updated_at = now
+    }
+    const info = persistParse(state, result, script)
+    results.push({
+      file,
+      script_id: script.id,
+      status: result.warnings.length > 0 ? 'warning' : 'ok',
+      target_tables: result.targets,
+      source_tables: result.sources,
+      edges_created: info.edges_created,
+      warnings: result.warnings,
+      error: null,
+    })
+  }
+  persist()
+  return {
+    summary: {
+      total: results.length,
+      ok: results.filter((r) => r.status === 'ok').length,
+      warning: results.filter((r) => r.status === 'warning').length,
+      error: results.filter((r) => r.status === 'error').length,
+      edges_created: results.reduce((n, r) => n + r.edges_created, 0),
+    },
+    results,
+  }
 }
 
 // ---------------------------------------------------------------- 报表
