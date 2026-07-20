@@ -2,5 +2,5 @@
 import { copyFileSync, mkdirSync } from 'node:fs';
 
 mkdirSync('dist', { recursive: true });
-copyFileSync('server/boot.cjs', 'dist/boot.js');
+copyFileSync('server/boot.mjs', 'dist/boot.js');
 console.log('postbuild: dist/boot.js ready');

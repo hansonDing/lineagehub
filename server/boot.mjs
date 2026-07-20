@@ -1,12 +1,13 @@
-// LineageHub 预览运行时引导:零依赖 Node 静态服务器
-// 预览平台以 `node dist/boot.js` 启动本文件(postbuild 从 server/boot.cjs 拷贝)
+// LineageHub 预览运行时引导:零依赖 Node 静态服务器(ESM,模板 package.json 为 type:module)
+// 预览平台以 `node dist/boot.js` 启动本文件(postbuild 从 server/boot.mjs 拷贝)
 // 真实全栈部署请用根目录 Dockerfile(FastAPI 托管 dist + /api)
 // 本服务器只托管静态前端;/api/* 返回 503,前端会自动降级到浏览器内置演示模式
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = __dirname; // dist/
+const ROOT = path.dirname(fileURLToPath(import.meta.url)); // dist/
 const PORT = Number(process.env.PORT || 8000);
 
 const MIME = {
