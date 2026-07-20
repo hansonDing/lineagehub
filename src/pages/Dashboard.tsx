@@ -17,7 +17,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { ApprovalDecision, ApprovalInboxItem, DashboardStats } from '@/lib/api'
 import { decideApproval, getDashboardStats, listApprovals } from '@/lib/api'
-import { LAYER_COLORS, LAYER_NAMES, formatChangeId, relativeTime } from '@/lib/format'
+import { LAYER_COLORS, formatChangeId, relativeTime } from '@/lib/format'
+import { useT, type I18nVars } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/common/Avatar'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -73,12 +74,13 @@ function CardHeader({ title, extra, action }: { title: ReactNode; extra?: ReactN
 
 /** 内嵌错误条:12px 红字 + 重试 link,不弹窗阻断 */
 function ErrorBar({ onRetry }: { onRetry: () => void }) {
+  const { t } = useT()
   return (
     <div className="flex items-center gap-2 px-4 py-3 text-xs text-danger">
       <AlertCircle className="size-3.5" />
-      数据加载失败
+      {t('dashboard.error.loadFailed')}
       <button type="button" onClick={onRetry} className="text-primary-600 hover:underline">
-        重试
+        {t('common.button.retry')}
       </button>
     </div>
   )
@@ -109,7 +111,7 @@ function makeSpark(total: number): number[] {
 }
 
 /** 变更摘要文案:「dwd.xxx 新增 2 个字段」 */
-function summarizeChange(item: ApprovalInboxItem): string {
+function summarizeChange(item: ApprovalInboxItem, t: (key: string, vars?: I18nVars) => string): string {
   const event = item.change_event
   const name = event?.object_name ?? item.target_name
   try {
@@ -119,22 +121,22 @@ function summarizeChange(item: ApprovalInboxItem): string {
       const removed = Array.isArray(diff.removed) ? diff.removed.length : 0
       const changed = Array.isArray(diff.type_changed) ? diff.type_changed.length : 0
       const parts: string[] = []
-      if (added) parts.push(`新增 ${added} 个字段`)
-      if (removed) parts.push(`删除 ${removed} 个字段`)
-      if (changed) parts.push(`变更 ${changed} 个字段类型`)
-      if (parts.length) return `${name} ${parts.join(',')}`
+      if (added) parts.push(t('dashboard.change.fieldsAdded', { count: added }))
+      if (removed) parts.push(t('dashboard.change.fieldsRemoved', { count: removed }))
+      if (changed) parts.push(t('dashboard.change.fieldsTypeChanged', { count: changed }))
+      if (parts.length) return `${name} ${parts.join(t('dashboard.change.join'))}`
     } else {
       const added = Array.isArray(diff.edges_added) ? diff.edges_added.length : 0
       const removed = Array.isArray(diff.edges_removed) ? diff.edges_removed.length : 0
       const parts: string[] = []
-      if (added) parts.push(`新增 ${added} 条血缘边`)
-      if (removed) parts.push(`移除 ${removed} 条血缘边`)
-      if (parts.length) return `${name} ${parts.join(',')}`
+      if (added) parts.push(t('dashboard.change.edgesAdded', { count: added }))
+      if (removed) parts.push(t('dashboard.change.edgesRemoved', { count: removed }))
+      if (parts.length) return `${name} ${parts.join(t('dashboard.change.join'))}`
     }
   } catch {
     /* diff_summary 非 JSON 时回退 */
   }
-  return `${name} 变更待审批`
+  return t('dashboard.change.pendingApproval', { name })
 }
 
 // ---------- 待办审批 ----------
@@ -159,6 +161,7 @@ function ApprovalsCard({
   onCommitted: () => void
 }) {
   const navigate = useNavigate()
+  const { t } = useT()
   // 已决策但仍在撤销窗口内的任务(乐观移除,5s 后真正提交)
   const [pending, setPending] = useState<Map<number, PendingDecision>>(new Map())
   // 决策形变中的行(按钮收缩为状态标)
@@ -211,13 +214,13 @@ function ApprovalsCard({
     try {
       await decideApproval(taskId, { decision: entry.decision })
       toast.success(
-        entry.decision === 'approved' ? '已通过' : '已驳回',
-        `审批任务 #${taskId} 处理完成`,
+        t(entry.decision === 'approved' ? 'common.status.approved' : 'common.status.rejected'),
+        t('dashboard.approvals.taskDone', { id: taskId }),
       )
       notifyApprovalsChanged()
       onCommitted()
     } catch {
-      toast.error('操作失败', '审批提交失败,请重试')
+      toast.error(t('dashboard.approvals.opFailed'), t('dashboard.approvals.submitFailed'))
       onCommitted() // 重新拉取以恢复行
     }
   }
@@ -231,13 +234,13 @@ function ApprovalsCard({
       next.delete(taskId)
       return next
     })
-    toast.info('已撤销', '审批操作已取消')
+    toast.info(t('dashboard.approvals.undoTitle'), t('dashboard.approvals.undoDesc'))
   }
 
   return (
     <Card>
       <CardHeader
-        title="待办审批"
+        title={t('dashboard.approvals.title')}
         extra={
           items.length > 0 && (
             <span className="rounded bg-pending px-1.5 text-[11px] font-medium leading-4 text-white">
@@ -247,7 +250,7 @@ function ApprovalsCard({
         }
         action={
           <Button variant="link" onClick={() => navigate('/changes?tab=inbox')}>
-            全部审批 →
+            {t('dashboard.approvals.all')}
           </Button>
         }
       />
@@ -258,8 +261,8 @@ function ApprovalsCard({
       ) : visible.length === 0 && processedCount === 0 ? (
         <EmptyState
           image="/empty-approval.svg"
-          title="没有待处理的审批"
-          description="所有变更都已处理完毕"
+          title={t('dashboard.approvals.empty.title')}
+          description={t('dashboard.approvals.empty.desc')}
         />
       ) : (
         <div>
@@ -289,21 +292,24 @@ function ApprovalsCard({
                       <div className="flex items-center gap-2">
                         <ChangeTypeBadge type={event?.change_type ?? 'ddl_change'} />
                         <span className="truncate text-[13px] font-semibold text-slate-900">
-                          {summarizeChange(item)}
+                          {summarizeChange(item, t)}
                         </span>
                         <StatusBadge status="pending" className="shrink-0" />
                       </div>
                       <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                         <span className="font-mono">{formatChangeId(item.change_event_id)}</span>
                         <span>·</span>
-                        <span>{event?.submitted_by ?? '-'} 提交</span>
+                        <span>{t('dashboard.approvals.submittedBy', { user: event?.submitted_by ?? '-' })}</span>
                         <span>·</span>
                         <span title={event?.created_at}>{relativeTime(event?.created_at)}</span>
                         {event && (
                           <>
                             <span>·</span>
                             <span>
-                              影响 报表×{event.impacted_report_count} 系统×{event.impacted_system_count}
+                              {t('dashboard.approvals.impact', {
+                                reports: event.impacted_report_count,
+                                systems: event.impacted_system_count,
+                              })}
                             </span>
                           </>
                         )}
@@ -325,20 +331,20 @@ function ApprovalsCard({
                           )}
                         >
                           {morph === 'approved' ? <Check className="size-3.5" /> : <X className="size-3.5" />}
-                          {morph === 'approved' ? '已通过' : '已驳回'}
+                          {t(morph === 'approved' ? 'common.status.approved' : 'common.status.rejected')}
                         </motion.span>
                       ) : (
                         <>
                           <Button size="sm" variant="approve" onClick={() => decide(item, 'approved')}>
-                            通过
+                            {t('common.button.approve')}
                           </Button>
                           <Button size="sm" variant="danger" onClick={() => decide(item, 'rejected')}>
-                            驳回
+                            {t('common.button.reject')}
                           </Button>
                           <Button
                             size="icon-sm"
                             variant="ghost"
-                            aria-label="详情"
+                            aria-label={t('common.button.detail')}
                             onClick={() => navigate(`/changes?tab=inbox&change=${item.change_event_id}`)}
                           >
                             <ChevronRight className="size-4" />
@@ -361,13 +367,13 @@ function ApprovalsCard({
                 transition={{ duration: 0.2 }}
                 className="flex h-10 items-center justify-between border-t border-slate-100 bg-slate-50 px-4 text-xs text-slate-600"
               >
-                <span>已处理 {processedCount} 条</span>
+                <span>{t('dashboard.approvals.processed', { count: processedCount })}</span>
                 <button
                   type="button"
                   onClick={() => undo(Array.from(pending.keys())[0])}
                   className="font-medium text-primary-600 hover:underline"
                 >
-                  撤销
+                  {t('common.button.undo')}
                 </button>
               </motion.div>
             )}
@@ -394,6 +400,7 @@ function LayerDistributionCard({
   onRetry: () => void
 }) {
   const navigate = useNavigate()
+  const { t } = useT()
   const distribution = useMemo(() => {
     const map = new Map((stats?.layer_distribution ?? []).map((d) => [d.layer, d.count]))
     return LAYER_ORDER.map((layer) => ({ layer, count: map.get(layer) ?? 0 }))
@@ -403,8 +410,8 @@ function LayerDistributionCard({
   return (
     <Card>
       <CardHeader
-        title="数仓分层分布"
-        action={<span className="text-xs text-slate-500">共 {total} 张表</span>}
+        title={t('dashboard.layers.title')}
+        action={<span className="text-xs text-slate-500">{t('dashboard.layers.total', { count: total })}</span>}
       />
       {loading ? (
         <SkeletonRows rows={5} height={40} />
@@ -424,7 +431,7 @@ function LayerDistributionCard({
               >
                 <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
                 <LayerBadge layer={d.layer} />
-                <span className="w-10 text-xs text-slate-500">{LAYER_NAMES[d.layer]}</span>
+                <span className="w-10 text-xs text-slate-500">{t(`common.layer.${d.layer}`)}</span>
                 <span className="h-2 flex-1 overflow-hidden rounded bg-slate-100">
                   <motion.span
                     className="block h-full rounded"
@@ -463,16 +470,17 @@ function RecentChangesCard({
   onRetry: () => void
 }) {
   const navigate = useNavigate()
+  const { t } = useT()
   const changes = (stats?.recent_changes ?? []).slice(0, 6)
   const dotColor = { approved: '#16A34A', pending: '#D97706', rejected: '#DC2626' } as const
 
   return (
     <Card>
       <CardHeader
-        title="最近变更"
+        title={t('dashboard.recent.title')}
         action={
           <Button variant="link" onClick={() => navigate('/changes?tab=events')}>
-            变更中心 →
+            {t('dashboard.recent.all')}
           </Button>
         }
       />
@@ -483,8 +491,8 @@ function RecentChangesCard({
       ) : changes.length === 0 ? (
         <EmptyState
           image="/empty-change.svg"
-          title="暂无变更事件"
-          description="上游 DDL 或 SQL 发生变更时会在这里出现"
+          title={t('dashboard.recent.empty.title')}
+          description={t('dashboard.recent.empty.desc')}
         />
       ) : (
         <div className="py-1">
@@ -518,7 +526,7 @@ function RecentChangesCard({
                   <span className="flex items-center gap-2">
                     <span className="truncate text-[13px] font-medium text-slate-900">
                       <span className="font-mono">{change.object_name}</span>{' '}
-                      {change.change_type === 'ddl_change' ? 'DDL 变更' : 'SQL 变更'}
+                      {t(`common.changeType.${change.change_type}`)}
                     </span>
                     <StatusBadge status={change.status} className="shrink-0" />
                   </span>
@@ -553,14 +561,15 @@ function HotTablesCard({
   onRetry: () => void
 }) {
   const navigate = useNavigate()
+  const { t } = useT()
   const tables = (stats?.hot_tables ?? []).slice(0, 5)
   const maxDownstream = Math.max(1, ...tables.map((t) => t.downstream))
 
   return (
     <Card>
       <CardHeader
-        title="下游影响 Top 表"
-        action={<span className="text-xs text-slate-500">按直接+间接下游表数量排序</span>}
+        title={t('dashboard.hot.title')}
+        action={<span className="text-xs text-slate-500">{t('dashboard.hot.subtitle')}</span>}
       />
       {loading ? (
         <SkeletonRows rows={5} height={44} />
@@ -569,8 +578,8 @@ function HotTablesCard({
       ) : tables.length === 0 ? (
         <EmptyState
           image="/empty-table.svg"
-          title="暂无血缘数据"
-          description="提交 SQL 脚本后,这里会展示下游影响最大的表"
+          title={t('dashboard.hot.empty.title')}
+          description={t('dashboard.hot.empty.desc')}
         />
       ) : (
         <div className="py-1">
@@ -607,7 +616,9 @@ function HotTablesCard({
                     </span>
                   )}
                   <span className="flex w-28 shrink-0 items-center justify-end gap-2">
-                    <span className="font-mono text-[13px] text-slate-900">下游 {table.downstream}</span>
+                    <span className="font-mono text-[13px] text-slate-900">
+                      {t('dashboard.hot.downstream', { count: table.downstream })}
+                    </span>
                     <span className="h-1 w-12 overflow-hidden rounded bg-slate-100">
                       <motion.span
                         className="block h-full rounded"
@@ -620,7 +631,7 @@ function HotTablesCard({
                   </span>
                   <span className="flex w-14 shrink-0 items-center justify-end gap-1 font-mono text-[13px] text-slate-900">
                     {reports > 0 && <BarChart3 className="size-3 text-layer-ads" />}
-                    {reports > 0 ? `报表 ${reports}` : '—'}
+                    {reports > 0 ? t('dashboard.hot.reports', { count: reports }) : '—'}
                   </span>
                 </button>
               </motion.div>
@@ -636,6 +647,7 @@ function HotTablesCard({
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { t } = useT()
   const { user } = useUser()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
@@ -708,38 +720,40 @@ export default function Dashboard() {
 
   const statCards = [
     {
-      label: '数仓表',
+      label: t('dashboard.stat.tables'),
       icon: Table2,
       value: stats?.table_count ?? 0,
       delta: undefined,
-      hint: stats ? `覆盖 ${stats.layer_distribution.length} 个分层` : undefined,
+      hint: stats ? t('dashboard.stat.tables.hint', { count: stats.layer_distribution.length }) : undefined,
       path: '/metadata?tab=tables',
     },
     {
-      label: '血缘边',
+      label: t('dashboard.stat.edges'),
       icon: Network,
       value: stats?.edge_count ?? 0,
       delta: undefined,
       hint:
         stats && stats.table_count > 0
-          ? `覆盖 ${Math.min(100, Math.round((stats.edge_count / Math.max(1, stats.table_count)) * 100))}% 的数仓表`
+          ? t('dashboard.stat.edges.hint', {
+              pct: Math.min(100, Math.round((stats.edge_count / Math.max(1, stats.table_count)) * 100)),
+            })
           : undefined,
       path: '/lineage',
     },
     {
-      label: '业务系统',
+      label: t('dashboard.stat.systems'),
       icon: Server,
       value: stats?.system_count ?? 0,
       delta: '0',
-      hint: '含来源系统与目标系统',
+      hint: t('dashboard.stat.systems.hint'),
       path: '/metadata?tab=systems',
     },
     {
-      label: '报表',
+      label: t('dashboard.stat.reports'),
       icon: BarChart3,
       value: stats?.report_count ?? 0,
       delta: undefined,
-      hint: stats ? `待办审批 ${stats.pending_approvals} 条` : undefined,
+      hint: stats ? t('dashboard.stat.reports.hint', { count: stats.pending_approvals }) : undefined,
       path: '/metadata?tab=reports',
     },
   ]
@@ -749,9 +763,9 @@ export default function Dashboard() {
       {/* 页面头 */}
       <Section index={0} className="mb-4 flex items-center justify-between">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-xl font-semibold leading-7 text-slate-900">总览</h1>
+          <h1 className="text-xl font-semibold leading-7 text-slate-900">{t('dashboard.title')}</h1>
           <span className="text-xs text-slate-500">
-            数据血缘平台运行状况 · 更新于 {updatedAt ? relativeTime(updatedAt.toISOString()) : '—'}
+            {t('dashboard.subtitle', { time: updatedAt ? relativeTime(updatedAt.toISOString()) : '—' })}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -759,11 +773,11 @@ export default function Dashboard() {
             <RefreshCw
               className={cn('size-3.5', refreshing && 'animate-spin [animation-duration:800ms]')}
             />
-            刷新
+            {t('common.button.refresh')}
           </Button>
           <Button variant="primary" onClick={() => navigate('/sql')}>
             <Plus className="size-3.5" />
-            提交 SQL
+            {t('dashboard.action.submitSql')}
           </Button>
         </div>
       </Section>
@@ -773,9 +787,9 @@ export default function Dashboard() {
         <Section index={1} className="mb-4">
           <div className="flex h-11 items-center gap-2 rounded-lg border border-info/20 bg-info-light px-4 text-[13px] text-slate-700">
             <AlertCircle className="size-4 text-info" />
-            系统暂无数据,提交第一个 SQL 脚本开始构建血缘
+            {t('dashboard.emptyBanner.text')}
             <Button size="sm" variant="secondary" className="ml-auto" onClick={() => navigate('/sql')}>
-              去提交 SQL
+              {t('dashboard.emptyBanner.action')}
             </Button>
           </div>
         </Section>

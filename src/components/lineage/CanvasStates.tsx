@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router'
+import { useT } from '@/lib/i18n'
 
 /**
  * 画布加载态(lineage.md §6):Network 40px #2DD4BF 描边绘入 800ms + 「正在构建血缘图…」
  */
 export function CanvasLoading() {
+  const { t } = useT()
   const draw = {
     hidden: { pathLength: 0, opacity: 0 },
     show: (i: number) => ({
@@ -26,7 +28,7 @@ export function CanvasLoading() {
         <motion.line x1="12" y1="10" x2="28" y2="18" variants={draw} custom={2} initial="hidden" animate="show" />
         <motion.line x1="12" y1="30" x2="28" y2="22" variants={draw} custom={3} initial="hidden" animate="show" />
       </svg>
-      <p className="text-[13px] text-[#8B98AD]">正在构建血缘图…</p>
+      <p className="text-[13px] text-[#8B98AD]">{t('lineage.canvas.loading')}</p>
     </div>
   )
 }
@@ -35,20 +37,19 @@ export function CanvasLoading() {
  * 无数据空态(lineage.md §6):empty-lineage.svg + 主操作「去提交 SQL」
  */
 export function EmptyLineage() {
+  const { t } = useT()
   const navigate = useNavigate()
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 px-6 text-center">
       <img src="/empty-lineage.svg" alt="" width={240} height={160} className="mb-3 opacity-70" />
-      <p className="text-sm font-semibold text-[#CBD5E1]">还没有血缘数据</p>
-      <p className="max-w-[320px] text-[13px] text-[#8B98AD]">
-        提交第一个 SQL 脚本,解析引擎将自动构建血缘
-      </p>
+      <p className="text-sm font-semibold text-[#CBD5E1]">{t('lineage.empty.title')}</p>
+      <p className="max-w-[320px] text-[13px] text-[#8B98AD]">{t('lineage.empty.desc')}</p>
       <button
         type="button"
         onClick={() => navigate('/sql')}
         className="mt-4 h-8 rounded-md bg-primary-700 px-3 text-[13px] font-medium text-white transition-colors duration-120 hover:bg-primary-800"
       >
-        去提交 SQL
+        {t('lineage.empty.action')}
       </button>
     </div>
   )
@@ -66,10 +67,11 @@ export function ErrorLineage({
   onRetry: () => void
   onBack?: () => void
 }) {
+  const { t } = useT()
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 px-6 text-center">
       <img src="/empty-lineage.svg" alt="" width={240} height={160} className="mb-3 opacity-40" />
-      <p className="text-sm font-semibold text-[#CBD5E1]">血缘数据加载失败</p>
+      <p className="text-sm font-semibold text-[#CBD5E1]">{t('lineage.error.title')}</p>
       <p className="max-w-[360px] text-[13px] text-[#8B98AD]">{message}</p>
       <div className="mt-4 flex items-center gap-2">
         <button
@@ -77,7 +79,7 @@ export function ErrorLineage({
           onClick={onRetry}
           className="h-8 rounded-md bg-primary-700 px-3 text-[13px] font-medium text-white transition-colors duration-120 hover:bg-primary-800"
         >
-          重试
+          {t('common.button.retry')}
         </button>
         {onBack && (
           <button
@@ -85,7 +87,7 @@ export function ErrorLineage({
             onClick={onBack}
             className="h-8 rounded-md border border-[#263349] px-3 text-[13px] font-medium text-[#CBD5E1] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.08)]"
           >
-            返回全量总览
+            {t('lineage.error.backToOverview')}
           </button>
         )}
       </div>

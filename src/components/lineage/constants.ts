@@ -1,5 +1,5 @@
 import type { TableLayer } from '@/lib/api'
-import { LAYER_COLORS, LAYER_NAMES } from '@/lib/format'
+import { LAYER_COLORS } from '@/lib/format'
 
 /** 画布与节点规格(design.md §4.5 / §10) */
 export const CANVAS_BG = '#0A101F'
@@ -25,14 +25,10 @@ export const HOT_TABLE_NAME = 'dwd.dwd_trade_order_detail'
 /** 层展示顺序:ods → dim → dwd → dws → ads → other */
 export const LAYER_ORDER: TableLayer[] = ['ods', 'dim', 'dwd', 'dws', 'ads', 'other']
 
-export { LAYER_COLORS, LAYER_NAMES }
+export { LAYER_COLORS }
 
 export function layerColor(layer: string): string {
   return LAYER_COLORS[(layer as TableLayer) in LAYER_COLORS ? (layer as TableLayer) : 'other']
-}
-
-export function layerName(layer: string): string {
-  return LAYER_NAMES[(layer as TableLayer) in LAYER_NAMES ? (layer as TableLayer) : 'other']
 }
 
 /** 搜索 / 左侧面板使用的轻量表引用 */

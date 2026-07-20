@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /**
  * Modal 模态(design.md §9.6 + §8.5)
@@ -27,6 +28,7 @@ export function Modal({
   /** 危险操作(删除确认):标题红色 */
   danger?: boolean
 }) {
+  const { t } = useT()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -65,7 +67,7 @@ export function Modal({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="关闭"
+                aria-label={t('common.close')}
                 className="rounded p-1 text-slate-400 transition-colors duration-120 hover:text-slate-900"
               >
                 <X className="size-4" />

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router'
 import type { ReportListItem, SqlScript, TableDetail, TableLayer } from '@/lib/api'
 import { getChange, getLineageGraph, getTable, listChanges, listReports, listScripts } from '@/lib/api'
 import { formatChangeId, formatDateTime } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/common/Avatar'
 import { LayerBadge } from '@/components/common/LayerBadge'
@@ -76,6 +77,7 @@ export function DetailDrawer({
   onClose: () => void
   onFocusTable: (id: number, name: string) => void
 }) {
+  const { t } = useT()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<TableDetailFull | null>(null)
@@ -162,7 +164,7 @@ export function DetailDrawer({
       } catch (err) {
         if (!cancelled) {
           setLoading(false)
-          toast.error('表详情加载失败', err instanceof Error ? err.message : undefined)
+          toast.error(t('lineage.drawer.loadFailed'), err instanceof Error ? err.message : undefined)
           onClose()
         }
       }
@@ -177,13 +179,13 @@ export function DetailDrawer({
   const tabs = useMemo(
     () =>
       [
-        { key: 'fields', label: '字段' },
-        { key: 'up', label: `上游 ${up.length}` },
-        { key: 'down', label: `下游 ${down.length}` },
-        { key: 'sql', label: '关联 SQL' },
-        { key: 'reports', label: '关联报表' },
+        { key: 'fields', label: t('lineage.drawer.tab.fields') },
+        { key: 'up', label: t('lineage.drawer.tab.upstream', { count: up.length }) },
+        { key: 'down', label: t('lineage.drawer.tab.downstream', { count: down.length }) },
+        { key: 'sql', label: t('lineage.drawer.tab.sql') },
+        { key: 'reports', label: t('lineage.drawer.tab.reports') },
       ] as { key: DrawerTab; label: string }[],
-    [up.length, down.length],
+    [t, up.length, down.length],
   )
 
   const columns = useMemo(
@@ -194,8 +196,8 @@ export function DetailDrawer({
   const onCopyName = async () => {
     if (!detail) return
     const ok = await copyText(detail.name)
-    if (ok) toast.success('已复制', detail.name)
-    else toast.error('复制失败')
+    if (ok) toast.success(t('lineage.toast.copied'), detail.name)
+    else toast.error(t('lineage.toast.copyFailed'))
   }
 
   const neighborRow = (n: NeighborRef) => (
@@ -259,8 +261,8 @@ export function DetailDrawer({
                 <button
                   type="button"
                   onClick={onCopyName}
-                  aria-label="复制表名"
-                  title="复制表名"
+                  aria-label={t('lineage.action.copyName')}
+                  title={t('lineage.action.copyName')}
                   className="rounded p-1 text-[#8B98AD] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.08)] hover:text-[#F1F5F9]"
                 >
                   <Copy className="size-3.5" />
@@ -268,7 +270,7 @@ export function DetailDrawer({
                 <button
                   type="button"
                   onClick={onClose}
-                  aria-label="关闭"
+                  aria-label={t('common.close')}
                   className="rounded p-1 text-[#8B98AD] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.08)] hover:text-[#F1F5F9]"
                 >
                   <X className="size-4" />
@@ -276,14 +278,17 @@ export function DetailDrawer({
               </div>
             </div>
             <div className="mt-2 text-xs leading-5 text-[#8B98AD]">
-              负责人 {detail.owner || '未配置'} · 来源系统 {detail.source_system_name ?? '数仓内部加工'} · 字段{' '}
-              <span className="font-mono">{detail.column_count ?? detail.columns.length}</span> · 更新于{' '}
-              {formatDateTime(detail.updated_at).slice(0, 10)}
+              {t('lineage.drawer.meta', {
+                owner: detail.owner || t('lineage.drawer.ownerFallback'),
+                system: detail.source_system_name ?? t('lineage.drawer.internalSystem'),
+                count: detail.column_count ?? detail.columns.length,
+                time: formatDateTime(detail.updated_at).slice(0, 10),
+              })}
             </div>
             {reports.length > 0 && (
               <div className="mt-1 flex items-center gap-1 text-[11px] text-[#C9A23F]">
                 <BarChart3 className="size-3" />
-                报表源 · {reports.length} 张关联报表
+                {t('lineage.drawer.reportSource', { count: reports.length })}
               </div>
             )}
           </motion.div>
@@ -327,7 +332,7 @@ export function DetailDrawer({
               >
                 {tab === 'fields' &&
                   (columns.length === 0 ? (
-                    emptyHint('暂无字段信息')
+                    emptyHint(t('lineage.drawer.empty.fields'))
                   ) : (
                     <div>
                       {columns.map((c) => {
@@ -336,7 +341,7 @@ export function DetailDrawer({
                           <div key={c.id} className="flex h-8 items-center gap-2 px-2">
                             {changeId != null ? (
                               <span
-                                title={`${formatChangeId(changeId)} 新增`}
+                                title={t('lineage.drawer.changeAdded', { id: formatChangeId(changeId) })}
                                 className="size-[5px] shrink-0 rounded-full bg-[#D97706]"
                               />
                             ) : (
@@ -346,7 +351,7 @@ export function DetailDrawer({
                               {c.name}
                               {isPartitionColumn(c.comment) && (
                                 <span
-                                  title="分区字段"
+                                  title={t('lineage.drawer.partition')}
                                   className="ml-1 rounded bg-[#1E293B] px-1 font-mono text-[10px] text-[#8B98AD]"
                                 >
                                   P
@@ -365,12 +370,12 @@ export function DetailDrawer({
                     </div>
                   ))}
                 {tab === 'up' &&
-                  (up.length === 0 ? emptyHint('暂无上游表') : <div>{up.map(neighborRow)}</div>)}
+                  (up.length === 0 ? emptyHint(t('lineage.drawer.empty.upstream')) : <div>{up.map(neighborRow)}</div>)}
                 {tab === 'down' &&
-                  (down.length === 0 ? emptyHint('暂无下游表') : <div>{down.map(neighborRow)}</div>)}
+                  (down.length === 0 ? emptyHint(t('lineage.drawer.empty.downstream')) : <div>{down.map(neighborRow)}</div>)}
                 {tab === 'sql' &&
                   (scripts.length === 0 ? (
-                    emptyHint('暂无关联 SQL')
+                    emptyHint(t('lineage.drawer.empty.sql'))
                   ) : (
                     <div>
                       {scripts.map((s) => (
@@ -394,7 +399,7 @@ export function DetailDrawer({
                   ))}
                 {tab === 'reports' &&
                   (reports.length === 0 ? (
-                    emptyHint('暂无关联报表')
+                    emptyHint(t('lineage.drawer.empty.reports'))
                   ) : (
                     <div>
                       {reports.map((r) => (
@@ -428,14 +433,14 @@ export function DetailDrawer({
               onClick={() => navigate('/metadata?tab=tables')}
               className="h-8 rounded-md border border-[#263349] px-3 text-[13px] font-medium text-[#CBD5E1] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.08)]"
             >
-              在元数据中配置
+              {t('lineage.action.configure')}
             </button>
             <button
               type="button"
               onClick={() => navigate(`/changes?tab=create&table=${tableId}`)}
               className="h-8 rounded-md bg-primary-700 px-3 text-[13px] font-medium text-white transition-colors duration-120 hover:bg-primary-800"
             >
-              发起 DDL 变更
+              {t('lineage.action.ddlChange')}
             </button>
           </motion.div>
         </motion.div>

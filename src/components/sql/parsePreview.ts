@@ -9,8 +9,15 @@
  */
 
 import type { TableLayer } from '@/lib/api'
+import { getLang, translate } from '@/lib/i18n'
 
 export type StatementType = 'CREATE' | 'CTAS' | 'INSERT' | 'SELECT' | 'ALTER' | 'UNKNOWN'
+
+/** 解析警告:文案按生成时语言翻译;code 供结果面板匹配建议文案(backend 警告为 generic) */
+export interface ParseWarning {
+  text: string
+  code: 'no_target' | 'unparseable' | 'syntax' | 'generic'
+}
 
 export interface LocalStatement {
   type: StatementType
@@ -35,7 +42,7 @@ export interface LocalParseResult {
   targets: string[]
   sources: string[]
   columnMappings: ColumnMapping[]
-  warnings: string[]
+  warnings: ParseWarning[]
   /** 整体失败(没有任何可解析语句) */
   failed: boolean
 }
@@ -287,7 +294,10 @@ export function parseSqlLocally(sql: string, targetTable?: string): LocalParseRe
   const masked = maskSql(sql)
   const rawStatements = splitStatements(masked)
   const statements: LocalStatement[] = []
-  const warnings: string[] = []
+  const warnings: ParseWarning[] = []
+  const lang = getLang()
+  const warn = (key: string, code: ParseWarning['code'], line?: number) =>
+    warnings.push({ text: translate(lang, key, line != null ? { line } : undefined), code })
   const targets: string[] = []
   const sources: string[] = []
   const columnMappings: ColumnMapping[] = []
@@ -352,12 +362,12 @@ export function parseSqlLocally(sql: string, targetTable?: string): LocalParseRe
         }
       }
       if (type === 'SELECT' && !target) {
-        warnings.push(`第 ${raw.lineStart} 行:裸 SELECT 未指定目标表,已跳过`)
+        warn('sql.warn.bareSelectNoTarget', 'no_target', raw.lineStart)
       }
     }
 
     if (type === 'UNKNOWN' || (!target && (head === 'create' || head === 'insert' || head === 'alter'))) {
-      warnings.push(`第 ${raw.lineStart} 行:无法解析的语句,已跳过`)
+      warn('sql.warn.unparseable', 'unparseable', raw.lineStart)
       statements.push({ type: 'UNKNOWN', target: null, sources: [], lineStart: raw.lineStart, lineEnd: raw.lineEnd })
       continue
     }
@@ -380,7 +390,7 @@ export function parseSqlLocally(sql: string, targetTable?: string): LocalParseRe
 
   const failed = targets.length === 0 && sources.length === 0
   if (failed && warnings.length === 0) {
-    warnings.push('第 1 行:语法错误,无法解析的语句')
+    warn('sql.warn.syntaxError', 'syntax')
   }
 
   return { statements, targets, sources, columnMappings, warnings, failed }

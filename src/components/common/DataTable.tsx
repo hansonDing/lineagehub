@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { EmptyState } from './EmptyState'
 
 /**
@@ -44,12 +45,13 @@ export function DataTable<T extends Record<string, unknown>>({
   loading,
   onRowClick,
   emptyImage,
-  emptyTitle = '暂无数据',
+  emptyTitle,
   emptyDescription,
   emptyAction,
   footer,
   className,
 }: DataTableProps<T>) {
+  const { t } = useT()
   return (
     <div className={cn('overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card', className)}>
       <table className="w-full border-collapse text-left">
@@ -68,7 +70,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       type="button"
                       onClick={col.onSort}
                       className="text-slate-400 transition-colors hover:text-slate-700"
-                      aria-label="排序"
+                      aria-label={t('common.table.sort')}
                     >
                       <ArrowUpDown className="size-3" />
                     </button>
@@ -94,7 +96,7 @@ export function DataTable<T extends Record<string, unknown>>({
               <td colSpan={columns.length}>
                 <EmptyState
                   image={emptyImage}
-                  title={emptyTitle}
+                  title={emptyTitle ?? t('common.empty.title')}
                   description={emptyDescription}
                   action={emptyAction}
                   className="min-h-60"
@@ -127,7 +129,7 @@ export function DataTable<T extends Record<string, unknown>>({
       </table>
       {footer && (
         <div className="flex h-10 items-center justify-end gap-2 border-t border-slate-200 px-3 text-xs text-slate-500">
-          {footer === true ? `共 ${data.length} 条` : footer}
+          {footer === true ? t('common.table.total', { count: data.length }) : footer}
         </div>
       )}
     </div>

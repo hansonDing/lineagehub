@@ -30,6 +30,7 @@ import {
   updateScript,
 } from '@/lib/api'
 import { formatChangeId, formatDateTime, relativeTime } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import { CodeEditor } from '@/components/common/CodeEditor'
 import type { Column } from '@/components/common/DataTable'
@@ -68,12 +69,6 @@ function Section({ index, className, children }: { index: number; className?: st
   )
 }
 
-const PLACEHOLDER_SQL = `-- 粘贴 Spark SQL:CREATE TABLE / CTAS / INSERT OVERWRITE / SELECT
-CREATE TABLE dwd.dwd_trade_order_detail AS
-SELECT o.order_id, o.user_id, u.region, o.amount
-FROM ods.ods_trade_order o
-JOIN ods.ods_user_info u ON o.user_id = u.user_id;`
-
 interface PanelData {
   local: LocalParseResult
   summary: ParseSummary
@@ -88,6 +83,7 @@ interface ScriptLineage {
 }
 
 export default function Sql() {
+  const { t } = useT()
   const { user } = useUser()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -142,7 +138,7 @@ export default function Sql() {
     entrancePlayed = false
     setScriptsLoading(true)
     refreshAll()
-      .catch(() => toast.error('加载失败', '无法获取脚本列表'))
+      .catch(() => toast.error(t('sql.toast.loadFailed'), t('sql.toast.loadFailedDesc')))
       .finally(() => setScriptsLoading(false))
   }, [refreshAll])
 
@@ -195,7 +191,7 @@ export default function Sql() {
   // ---------- 校验(预览不校验脚本名,提交才校验) ----------
   const validateSql = (): boolean => {
     if (!sqlText.trim()) {
-      setSqlErrorMsg('请先粘贴 SQL 语句')
+      setSqlErrorMsg(t('sql.config.sqlRequired'))
       setSqlFlash(true)
       window.setTimeout(() => setSqlFlash(false), 300)
       return false
@@ -206,7 +202,7 @@ export default function Sql() {
   const validate = (): boolean => {
     if (!validateSql()) return false
     if (!editing && !name.trim()) {
-      setNameError('请填写脚本名称')
+      setNameError(t('sql.config.nameRequired'))
       return false
     }
     return true
@@ -270,7 +266,13 @@ export default function Sql() {
       const local = parseSqlLocally(sqlText, effectiveTarget)
       const failed = res.target_tables.length === 0 && res.source_tables.length === 0
       setPanelData({
-        local: { ...local, warnings: res.warnings.length > 0 ? res.warnings : local.warnings },
+        local: {
+          ...local,
+          warnings:
+            res.warnings.length > 0
+              ? res.warnings.map((text) => ({ text, code: 'generic' as const }))
+              : local.warnings,
+        },
         failed,
         elapsed,
         summary: {
@@ -284,19 +286,25 @@ export default function Sql() {
       // 结果反馈(sql.md §2.2 / §5)
       if (res.change_event_id) {
         toast.info(
-          '血缘已变化',
-          `已自动创建变更事件 ${formatChangeId(res.change_event_id)} 并通知负责人审批,请前往「变更与审批」处理`,
+          t('sql.toast.lineageChanged'),
+          t('sql.toast.lineageChangedDesc', {
+            id: formatChangeId(res.change_event_id),
+            page: t('layout.nav.changes'),
+          }),
         )
       } else if (res.edges_created === 0 && res.tables_created.length === 0) {
-        toast.info('血缘无变化', '未创建新边')
+        toast.info(t('sql.toast.noChange'), t('sql.toast.noNewEdges'))
       } else {
-        toast.success('解析完成', `新建表 ${res.tables_created.length} · 新建边 ${res.edges_created}`)
+        toast.success(
+          t('sql.toast.parseDone'),
+          t('sql.toast.parseDoneDesc', { tables: res.tables_created.length, edges: res.edges_created }),
+        )
       }
       setEditing(null)
       await refreshAll()
     } catch (err) {
       setPanelOpen(false)
-      toast.error('解析失败', err instanceof Error ? err.message : '请求失败')
+      toast.error(t('sql.toast.parseFailed'), err instanceof Error ? err.message : t('sql.toast.requestFailed'))
     } finally {
       setPanelLoading(false)
       setParsing(false)
@@ -346,15 +354,18 @@ export default function Sql() {
       const detail = await getScript(script.id)
       const res = await updateScript(script.id, { sql_text: detail.sql_text })
       if (res.change_event_id) {
-        toast.info('血缘已变化', `已自动创建变更事件 ${formatChangeId(res.change_event_id)} 并通知负责人审批`)
+        toast.info(
+          t('sql.toast.lineageChanged'),
+          t('sql.toast.lineageChangedDescShort', { id: formatChangeId(res.change_event_id) }),
+        )
       } else if (res.edges_created === 0) {
-        toast.info('血缘无变化', '未创建新边')
+        toast.info(t('sql.toast.noChange'), t('sql.toast.noNewEdges'))
       } else {
-        toast.success('解析完成', `新建边 ${res.edges_created}`)
+        toast.success(t('sql.toast.parseDone'), t('sql.toast.parseDoneEdges', { edges: res.edges_created }))
       }
       await refreshAll()
     } catch (err) {
-      toast.error('重新解析失败', err instanceof Error ? err.message : '请求失败')
+      toast.error(t('sql.toast.reparseFailed'), err instanceof Error ? err.message : t('sql.toast.requestFailed'))
     } finally {
       setReparsingId(null)
     }
@@ -366,12 +377,12 @@ export default function Sql() {
     setDeleteLoading(true)
     try {
       await deleteScript(deleting.id)
-      toast.success('脚本已删除', deleting.name)
+      toast.success(t('sql.toast.deleted'), deleting.name)
       setDeleting(null)
       if (drawerScript?.id === deleting.id) setDrawerOpen(false)
       await refreshAll()
     } catch (err) {
-      toast.error('删除失败', err instanceof Error ? err.message : '请求失败')
+      toast.error(t('sql.toast.deleteFailed'), err instanceof Error ? err.message : t('sql.toast.requestFailed'))
     } finally {
       setDeleteLoading(false)
     }
@@ -401,7 +412,7 @@ export default function Sql() {
   const columns: Column<SqlScript & Record<string, unknown>>[] = [
     {
       key: 'name',
-      title: '脚本',
+      title: t('sql.list.col.script'),
       render: (row) => (
         <span className="flex items-center gap-2">
           <FileCode2 className="size-3.5 shrink-0 text-slate-500" />
@@ -411,7 +422,7 @@ export default function Sql() {
     },
     {
       key: 'sql_type',
-      title: '类型',
+      title: t('sql.list.col.type'),
       width: 72,
       render: (row) => (
         <span
@@ -426,7 +437,7 @@ export default function Sql() {
     },
     {
       key: 'lineage',
-      title: '血缘',
+      title: t('sql.list.col.lineage'),
       render: (row) => {
         const lin = lineageByScript.get(row.name)
         const target = row.target_table ?? lin?.targets.values().next().value
@@ -441,7 +452,7 @@ export default function Sql() {
                 onClick={(e) => e.stopPropagation()}
                 className="text-xs text-primary-600 hover:underline underline-offset-4"
               >
-                查看图
+                {t('sql.list.viewGraph')}
               </Link>
             )}
           </span>
@@ -450,13 +461,13 @@ export default function Sql() {
     },
     {
       key: 'status',
-      title: '状态',
+      title: t('sql.list.col.status'),
       width: 96,
       render: () => <StatusBadge status="parsed" />,
     },
     {
       key: 'version',
-      title: '版本',
+      title: t('sql.list.col.version'),
       width: 84,
       render: (row) => (
         <span className="flex items-center gap-1">
@@ -469,7 +480,7 @@ export default function Sql() {
     },
     {
       key: 'owner',
-      title: '提交人',
+      title: t('sql.list.col.owner'),
       render: () => (
         <span className="flex items-center gap-1.5">
           <Avatar name={user} size={24} />
@@ -479,7 +490,7 @@ export default function Sql() {
     },
     {
       key: 'updated_at',
-      title: '更新时间',
+      title: t('sql.list.col.updatedAt'),
       render: (row) => (
         <span className="text-xs text-slate-500" title={formatDateTime(row.updated_at)}>
           {relativeTime(row.updated_at)}
@@ -488,24 +499,24 @@ export default function Sql() {
     },
     {
       key: 'actions',
-      title: '操作',
+      title: t('sql.list.col.actions'),
       width: 108,
       align: 'right',
       render: (row) => (
         <span className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon-sm" aria-label="版本历史" onClick={() => openDrawer(row)}>
+          <Button variant="ghost" size="icon-sm" aria-label={t('sql.list.versionHistory')} onClick={() => openDrawer(row)}>
             <History className="size-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="重新解析"
+            aria-label={t('sql.list.reparse')}
             loading={reparsingId === row.id}
             onClick={() => void handleReparse(row)}
           >
             <RefreshCw className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="删除" onClick={() => setDeleting(row)}>
+          <Button variant="ghost" size="icon-sm" aria-label={t('common.button.delete')} onClick={() => setDeleting(row)}>
             <Trash2 className="size-3.5" />
           </Button>
         </span>
@@ -530,14 +541,14 @@ export default function Sql() {
                     setName(e.target.value)
                     setNameError('')
                   }}
-                  placeholder="如 etl_dwd_trade_order_detail"
+                  placeholder={t('sql.editor.namePlaceholder')}
                   disabled={!!editing}
                   className="min-w-0 flex-1 border-b-2 border-transparent bg-transparent text-[15px] font-medium text-slate-900 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-primary-600 disabled:text-slate-500"
                 />
                 {editing && (
                   <span className="flex shrink-0 items-center gap-1 rounded bg-pending-light px-1.5 py-0.5 text-[11px] font-medium text-pending">
-                    编辑中 · v{editing.version} → v{editing.version + 1}
-                    <button type="button" onClick={cancelEditing} aria-label="取消编辑" className="hover:text-slate-900">
+                    {t('sql.editor.editingBadge', { from: editing.version, to: editing.version + 1 })}
+                    <button type="button" onClick={cancelEditing} aria-label={t('sql.editor.cancelEdit')} className="hover:text-slate-900">
                       <X className="size-3" />
                     </button>
                   </span>
@@ -558,7 +569,7 @@ export default function Sql() {
                     setSqlText(v)
                     setSqlErrorMsg('')
                   }}
-                  placeholder={PLACEHOLDER_SQL}
+                  placeholder={t('sql.editor.sqlPlaceholder')}
                   minHeight={360}
                   className="rounded-none border-0"
                 />
@@ -570,58 +581,61 @@ export default function Sql() {
           {/* 右:解析配置卡 */}
           <div className="col-span-12 xl:col-span-4">
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
-              <h3 className="text-[15px] font-semibold text-slate-900">解析配置</h3>
+              <h3 className="text-[15px] font-semibold text-slate-900">{t('sql.config.title')}</h3>
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-medium text-slate-700">方言</label>
+                  <label className="mb-1.5 block text-[13px] font-medium text-slate-700">{t('sql.config.dialect')}</label>
                   <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">
                     spark
                   </span>
-                  <p className="mt-1 text-xs text-slate-500">由 sqlglot 解析引擎处理</p>
+                  <p className="mt-1 text-xs text-slate-500">{t('sql.config.dialectHint')}</p>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-medium text-slate-700">脚本类型</label>
+                  <label className="mb-1.5 block text-[13px] font-medium text-slate-700">{t('sql.config.scriptType')}</label>
                   <select
                     value={scriptKind}
                     onChange={(e) => setScriptKind(e.target.value as 'auto' | 'ddl' | 'etl')}
                     className="h-8 w-full rounded-md border border-slate-300 bg-white px-2.5 text-[13px] text-slate-900 outline-none transition-colors focus:border-primary-600 focus:ring-2 focus:ring-[rgba(13,148,136,0.30)]"
                   >
-                    <option value="auto">自动判别(推荐)</option>
-                    <option value="ddl">DDL 建表</option>
-                    <option value="etl">ETL 查询</option>
+                    <option value="auto">{t('sql.config.typeAuto')}</option>
+                    <option value="ddl">{t('sql.config.typeDdl')}</option>
+                    <option value="etl">{t('sql.config.typeEtl')}</option>
                   </select>
-                  <p className="mt-1 text-xs text-slate-500">CREATE 开头识别为 DDL,SELECT/INSERT 识别为 ETL</p>
+                  <p className="mt-1 text-xs text-slate-500">{t('sql.config.typeHint')}</p>
                 </div>
                 {bareSelect && (
                   <div>
-                    <label className="mb-1.5 block text-[13px] font-medium text-slate-700">目标表名</label>
+                    <label className="mb-1.5 block text-[13px] font-medium text-slate-700">{t('sql.config.targetTable')}</label>
                     <input
                       value={targetTable}
                       onChange={(e) => setTargetTable(e.target.value)}
                       placeholder="dwd.dwd_xxx"
                       className="h-8 w-full rounded-md border border-slate-300 bg-white px-2.5 font-mono text-[13px] text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary-600 focus:ring-2 focus:ring-[rgba(13,148,136,0.30)]"
                     />
-                    <p className="mt-1 text-xs text-slate-500">SELECT 语句需指定写入的目标表</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('sql.config.targetHint')}</p>
                   </div>
                 )}
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-medium text-slate-700">提交人</label>
+                  <label className="mb-1.5 block text-[13px] font-medium text-slate-700">{t('sql.config.submitter')}</label>
                   <span className="flex items-center gap-1.5 text-[13px] text-slate-900">
                     <Avatar name={user} size={24} />
                     {user}
                   </span>
                 </div>
                 <div className="rounded-md bg-info-light p-2.5 text-xs leading-5 text-slate-600">
-                  支持:CREATE TABLE / CTAS / CREATE VIEW / INSERT OVERWRITE|INTO / ALTER TABLE /
-                  裸 SELECT(含 CTE、JOIN、UNION)。单条语句解析失败不会中断整体解析,将记入警告。
+                  {t('sql.config.supported')}
                 </div>
                 <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
                   <Button variant="secondary" onClick={handlePreview} loading={previewing} disabled={parsing}>
-                    解析预览
+                    {t('sql.config.preview')}
                   </Button>
                   <Button onClick={() => void handleSubmit()} loading={parsing} disabled={previewing}>
                     <Zap className="size-3.5" />
-                    {parsing ? '解析中…' : editing ? '保存新版本' : '提交解析'}
+                    {parsing
+                      ? t('sql.config.parsing')
+                      : editing
+                        ? t('sql.config.saveVersion')
+                        : t('sql.config.submit')}
                   </Button>
                 </div>
               </div>
@@ -660,7 +674,7 @@ export default function Sql() {
       <Section index={2}>
         <div className="rounded-lg border border-slate-200 bg-white shadow-card">
           <div className="flex h-12 flex-wrap items-center gap-2 border-b border-slate-200 px-4">
-            <h2 className="text-[15px] font-semibold text-slate-900">SQL 脚本</h2>
+            <h2 className="text-[15px] font-semibold text-slate-900">{t('sql.list.title')}</h2>
             <span className="rounded bg-slate-100 px-1 text-[11px] leading-4 text-slate-500">{scripts.length}</span>
             <div className="ml-auto flex items-center gap-2">
               <div className="relative">
@@ -668,7 +682,7 @@ export default function Sql() {
                 <input
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="搜索脚本名…"
+                  placeholder={t('sql.list.searchPlaceholder')}
                   className="h-8 w-52 rounded-md border border-slate-300 bg-white pl-8 pr-2.5 text-[13px] outline-none transition-colors placeholder:text-slate-400 focus:border-primary-600 focus:ring-2 focus:ring-[rgba(13,148,136,0.30)]"
                 />
               </div>
@@ -677,7 +691,7 @@ export default function Sql() {
                 onChange={(e) => setTypeFilter(e.target.value as 'all' | 'ddl' | 'etl')}
                 className="h-8 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-700 outline-none focus:border-primary-600"
               >
-                <option value="all">全部类型</option>
+                <option value="all">{t('sql.list.allTypes')}</option>
                 <option value="ddl">DDL</option>
                 <option value="etl">ETL</option>
               </select>
@@ -686,9 +700,9 @@ export default function Sql() {
                 onChange={(e) => setStatusFilter(e.target.value as 'all' | 'parsed' | 'parse_failed')}
                 className="h-8 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-700 outline-none focus:border-primary-600"
               >
-                <option value="all">全部状态</option>
-                <option value="parsed">已解析</option>
-                <option value="parse_failed">解析失败</option>
+                <option value="all">{t('sql.list.allStatus')}</option>
+                <option value="parsed">{t('common.status.parsed')}</option>
+                <option value="parse_failed">{t('common.status.parse_failed')}</option>
               </select>
             </div>
           </div>
@@ -699,16 +713,16 @@ export default function Sql() {
             loading={scriptsLoading}
             onRowClick={(row) => openDrawer(row)}
             emptyImage="/empty-table.svg"
-            emptyTitle={scripts.length === 0 && !hasFilter ? '还没有 SQL 脚本' : '未找到匹配的脚本'}
+            emptyTitle={
+              scripts.length === 0 && !hasFilter ? t('sql.list.empty.title') : t('sql.list.noMatch.title')
+            }
             emptyDescription={
-              scripts.length === 0 && !hasFilter
-                ? '提交 DDL 与 ETL 语句,自动构建血缘'
-                : '换个关键词,或检查筛选条件'
+              scripts.length === 0 && !hasFilter ? t('sql.list.empty.desc') : t('sql.list.noMatch.desc')
             }
             footer={
               hasFilter && filtered.length !== scripts.length
-                ? `筛选出 ${filtered.length} 条 / 共 ${scripts.length} 条`
-                : `共 ${filtered.length} 条`
+                ? t('sql.list.filteredCount', { shown: filtered.length, total: scripts.length })
+                : t('common.table.total', { count: filtered.length })
             }
             className="rounded-none border-0 shadow-none"
           />
@@ -737,26 +751,27 @@ export default function Sql() {
         open={!!deleting}
         onClose={() => setDeleting(null)}
         danger
-        title="删除脚本"
+        title={t('sql.delete.title')}
         footer={
           <>
             <Button variant="ghost" onClick={() => setDeleting(null)}>
-              取消
+              {t('common.button.cancel')}
             </Button>
             <Button variant="danger" onClick={() => void handleDelete()} loading={deleteLoading}>
-              确认删除
+              {t('sql.delete.confirmButton')}
             </Button>
           </>
         }
       >
         {deleting && (
           <p className="text-[13px] leading-6 text-slate-700">
-            确认删除脚本 <span className="font-mono font-medium text-slate-900">{deleting.name}</span>?
-            删除将同时移除该脚本独占的{' '}
+            {t('sql.delete.bodyPrefix')}{' '}
+            <span className="font-mono font-medium text-slate-900">{deleting.name}</span>
+            {t('sql.delete.bodyMiddle')}{' '}
             <span className="font-mono font-medium text-danger">
               {lineageByScript.get(deleting.name)?.edgeCount ?? 0}
             </span>{' '}
-            条血缘边,该操作不可撤销。
+            {t('sql.delete.bodySuffix')}
           </p>
         )}
       </Modal>

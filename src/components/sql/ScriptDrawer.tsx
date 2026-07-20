@@ -10,6 +10,8 @@ import { motion } from 'framer-motion'
 import type { ChangeEventSummary, SqlScript, SqlScriptDetail } from '@/lib/api'
 import { getScript, listChanges } from '@/lib/api'
 import { formatDateTime, relativeTime } from '@/lib/format'
+import { useT } from '@/lib/i18n'
+import type { I18nVars } from '@/lib/i18n'
 import { Avatar } from '@/components/common/Avatar'
 import { CodeEditor } from '@/components/common/CodeEditor'
 import type { DiffLine } from '@/components/common/CodeEditor'
@@ -48,6 +50,7 @@ export interface ScriptDrawerProps {
 }
 
 export function ScriptDrawer({ script, open, onClose, onEdit, onDelete, lineage }: ScriptDrawerProps) {
+  const { t } = useT()
   const [detail, setDetail] = useState<SqlScriptDetail | null>(null)
   const handleLoaded = useCallback((d: SqlScriptDetail) => setDetail(d), [])
 
@@ -72,10 +75,10 @@ export function ScriptDrawer({ script, open, onClose, onEdit, onDelete, lineage 
         script && detail && detail.id === script.id ? (
           <>
             <Button variant="secondary" onClick={() => onEdit(detail)}>
-              编辑并重新解析
+              {t('sql.drawer.edit')}
             </Button>
             <Button variant="danger" onClick={() => onDelete(script)}>
-              删除脚本
+              {t('sql.drawer.delete')}
             </Button>
           </>
         ) : undefined
@@ -99,6 +102,7 @@ function DrawerBody({
   onLoaded: (d: SqlScriptDetail) => void
 }) {
   const { user } = useUser()
+  const { t } = useT()
   const [detail, setDetail] = useState<SqlScriptDetail | null>(null)
   const [versions, setVersions] = useState<VersionEntry[]>([])
   const [diffView, setDiffView] = useState<DiffView | null>(null)
@@ -110,28 +114,28 @@ function DrawerBody({
       .then(([d, changes]) => {
         if (cancelled) return
         setDetail(d)
-        setVersions(buildVersions(d, changes))
+        setVersions(buildVersions(d, changes, t))
         setLoading(false)
         onLoaded(d)
       })
       .catch(() => {
         if (!cancelled) {
           setLoading(false)
-          toast.error('加载失败', '无法获取脚本详情')
+          toast.error(t('sql.toast.loadFailed'), t('sql.drawer.loadFailedDesc'))
         }
       })
     return () => {
       cancelled = true
     }
-  }, [script.id, onLoaded])
+  }, [script.id, onLoaded, t])
 
   const copySql = async () => {
     if (!detail) return
     try {
       await navigator.clipboard.writeText(detail.sql_text)
-      toast.success('已复制', 'SQL 原文已复制到剪贴板')
+      toast.success(t('sql.toast.copied'), t('sql.drawer.copiedDesc'))
     } catch {
-      toast.error('复制失败', '浏览器拒绝了剪贴板访问')
+      toast.error(t('sql.toast.copyFailed'), t('sql.drawer.copyFailedDesc'))
     }
   }
 
@@ -156,7 +160,7 @@ function DrawerBody({
             className="flex items-center gap-1 text-xs text-primary-600 hover:underline underline-offset-4"
           >
             <ArrowLeft className="size-3" />
-            返回版本历史
+            {t('sql.drawer.backToHistory')}
           </button>
           <span className="ml-auto flex items-center gap-1.5 font-mono text-xs text-slate-500">
             <span className="rounded bg-slate-100 px-1.5 py-px font-medium text-slate-600">v{diffView.fromV}</span>
@@ -172,10 +176,10 @@ function DrawerBody({
   return (
     <>
       {/* ---------- 基本信息 ---------- */}
-      <DrawerSection title="基本信息">
+      <DrawerSection title={t('sql.drawer.section.info')}>
         <dl className="space-y-2 text-[13px]">
           <div className="flex items-center justify-between">
-            <dt className="text-slate-500">类型</dt>
+            <dt className="text-slate-500">{t('sql.drawer.field.type')}</dt>
             <dd>
               <span
                 className={
@@ -189,43 +193,43 @@ function DrawerBody({
             </dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-slate-500">提交人</dt>
+            <dt className="text-slate-500">{t('sql.drawer.field.submitter')}</dt>
             <dd className="flex items-center gap-1.5">
               <Avatar name={user} size={24} />
               <span>{user}</span>
             </dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-slate-500">创建时间</dt>
+            <dt className="text-slate-500">{t('sql.drawer.field.createdAt')}</dt>
             <dd className="font-mono text-xs text-slate-700">{formatDateTime(script.created_at)}</dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-slate-500">血缘摘要</dt>
+            <dt className="text-slate-500">{t('sql.drawer.field.lineageSummary')}</dt>
             <dd className="font-mono text-xs text-slate-700">
-              源 {lineage?.sources ?? 0} → 目标 {lineage?.targets ?? 0}
+              {t('sql.drawer.lineageValue', { sources: lineage?.sources ?? 0, targets: lineage?.targets ?? 0 })}
             </dd>
           </div>
         </dl>
       </DrawerSection>
 
       {/* ---------- SQL 原文 ---------- */}
-      <DrawerSection title="SQL 原文">
+      <DrawerSection title={t('sql.drawer.section.sql')}>
         <div className="relative">
           <CodeEditor value={detail.sql_text} readOnly minHeight={84} className="max-h-60 text-xs" />
           <button
             type="button"
             onClick={() => void copySql()}
-            aria-label="复制 SQL"
+            aria-label={t('sql.drawer.copySql')}
             className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11px] text-slate-300 backdrop-blur transition-colors duration-120 hover:bg-white/20 hover:text-white"
           >
             <Copy className="size-3" />
-            复制
+            {t('sql.drawer.copy')}
           </button>
         </div>
       </DrawerSection>
 
       {/* ---------- 版本历史 ---------- */}
-      <DrawerSection title="版本历史">
+      <DrawerSection title={t('sql.drawer.section.versions')}>
         <div className="relative pl-4">
           <span className="absolute bottom-2 left-[5px] top-2 w-px bg-slate-200" aria-hidden />
           {versions.map((v, i) => (
@@ -263,7 +267,7 @@ function DrawerBody({
                     }
                     className="ml-auto text-xs text-primary-600 hover:underline underline-offset-4"
                   >
-                    对比 v{v.diff.fromV}
+                    {t('sql.drawer.compare', { version: v.diff.fromV })}
                   </button>
                 )}
               </div>
@@ -277,7 +281,11 @@ function DrawerBody({
 }
 
 /** 由当前版本 + sql_change 事件回推版本时间线 */
-function buildVersions(detail: SqlScriptDetail, changes: ChangeEventSummary[]): VersionEntry[] {
+function buildVersions(
+  detail: SqlScriptDetail,
+  changes: ChangeEventSummary[],
+  t: (key: string, vars?: I18nVars) => string,
+): VersionEntry[] {
   const events = changes
     .filter((c) => c.change_type === 'sql_change' && c.object_name === detail.name)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -287,7 +295,12 @@ function buildVersions(detail: SqlScriptDetail, changes: ChangeEventSummary[]): 
     v: detail.version,
     text: detail.sql_text,
     time: detail.updated_at,
-    note: events.length > 0 ? '当前版本' : detail.version > 1 ? '当前版本(更早版本原文未留存)' : '初始提交',
+    note:
+      events.length > 0
+        ? t('sql.drawer.note.current')
+        : detail.version > 1
+          ? t('sql.drawer.note.currentNoHistory')
+          : t('sql.drawer.note.initial'),
     current: true,
     diff:
       events.length > 0
@@ -303,7 +316,7 @@ function buildVersions(detail: SqlScriptDetail, changes: ChangeEventSummary[]): 
       v,
       text: events[i].old_text,
       time: events[i].created_at,
-      note: events[i].diff_summary || '版本更新',
+      note: events[i].diff_summary || t('sql.drawer.note.update'),
       diff: older ? { oldText: older.old_text, newText: events[i].old_text, fromV: v - 1 } : undefined,
     })
   }
@@ -314,7 +327,7 @@ function buildVersions(detail: SqlScriptDetail, changes: ChangeEventSummary[]): 
       v: 1,
       text: null,
       time: detail.created_at,
-      note: '初始提交(原文未留存)',
+      note: t('sql.drawer.note.initialNoText'),
     })
   }
   return entries

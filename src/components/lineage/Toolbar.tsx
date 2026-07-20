@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowDown, ArrowRight, Minus, Plus, Search } from 'lucide-react'
 import type { TableLayer } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { LayerBadge } from '@/components/common/LayerBadge'
 import { LAYER_ORDER, layerColor } from './constants'
@@ -30,6 +31,7 @@ function FloatingBox({ className, children }: { className?: string; children: Re
 // ---------------------------------------------------------------- 表搜索
 
 function TableSearch({ tables, onPick }: { tables: TableRef[]; onPick: (t: TableRef) => void }) {
+  const { t } = useT()
   const [keyword, setKeyword] = useState('')
   const [open, setOpen] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -69,7 +71,7 @@ function TableSearch({ tables, onPick }: { tables: TableRef[]; onPick: (t: Table
             if (e.key === 'Enter' && matches.length > 0) pick(matches[0])
             if (e.key === 'Escape') setOpen(false)
           }}
-          placeholder="搜索表名…"
+          placeholder={t('lineage.toolbar.searchPlaceholder')}
           className="h-full min-w-0 flex-1 bg-transparent text-[13px] text-[#CBD5E1] outline-none placeholder:text-[#55637A]"
         />
         <kbd className="shrink-0 rounded border border-[#263349] bg-[#0F172A] px-1 font-mono text-[11px] leading-4 text-[#55637A]">
@@ -86,7 +88,7 @@ function TableSearch({ tables, onPick }: { tables: TableRef[]; onPick: (t: Table
             className="absolute left-0 top-11 z-30 w-full overflow-hidden rounded-lg border border-[#263349] bg-[#121B2E] py-1 shadow-overlay"
           >
             {matches.length === 0 ? (
-              <div className="px-3 py-3 text-center text-xs text-[#55637A]">未找到匹配的表</div>
+              <div className="px-3 py-3 text-center text-xs text-[#55637A]">{t('lineage.toolbar.searchEmpty')}</div>
             ) : (
               matches.map((t) => (
                 <button
@@ -112,9 +114,10 @@ function TableSearch({ tables, onPick }: { tables: TableRef[]; onPick: (t: Table
 // ---------------------------------------------------------------- 模式切换
 
 function ModeSwitch({ mode, onChange }: { mode: LineageMode; onChange: (m: LineageMode) => void }) {
+  const { t } = useT()
   const items: { key: LineageMode; label: string }[] = [
-    { key: 'overview', label: '全量总览' },
-    { key: 'focus', label: '单表聚焦' },
+    { key: 'overview', label: t('lineage.toolbar.mode.overview') },
+    { key: 'focus', label: t('lineage.toolbar.mode.focus') },
   ]
   return (
     <FloatingBox className="gap-0.5 p-1">
@@ -160,6 +163,7 @@ function LayerChips({
   visibleTables: number
   visibleEdges: number
 }) {
+  const { t } = useT()
   const layers = CHIP_LAYERS.filter((l) => (counts[l] ?? 0) > 0)
   return (
     <FloatingBox className="gap-1 px-2">
@@ -172,7 +176,9 @@ function LayerChips({
             onClick={() => onToggle(layer)}
             style={{ opacity: active ? 1 : 0.3 }}
             className="flex h-7 items-center gap-1.5 rounded-md px-2 transition-opacity duration-180 hover:bg-[rgba(148,163,184,0.08)]"
-            title={active ? `隐藏 ${layer.toUpperCase()} 层` : `显示 ${layer.toUpperCase()} 层`}
+            title={t(active ? 'lineage.toolbar.layer.hide' : 'lineage.toolbar.layer.show', {
+              layer: layer.toUpperCase(),
+            })}
           >
             <span className="size-1.5 rounded-full" style={{ backgroundColor: layerColor(layer) }} />
             <span className="font-mono text-[11px] font-medium uppercase text-[#CBD5E1]">{layer}</span>
@@ -180,7 +186,7 @@ function LayerChips({
         )
       })}
       <span className="ml-1 whitespace-nowrap text-[11px] text-[#55637A]">
-        {visibleTables} 张表 · {visibleEdges} 条边
+        {t('lineage.toolbar.stats', { tables: visibleTables, edges: visibleEdges })}
       </span>
     </FloatingBox>
   )
@@ -197,19 +203,20 @@ function DepthStepper({
   value: number
   onChange: (v: number) => void
 }) {
+  const { t } = useT()
   const btn =
     'flex size-5 items-center justify-center rounded text-[#8B98AD] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.12)] hover:text-[#CBD5E1] disabled:pointer-events-none disabled:opacity-40'
   return (
     <span className="flex items-center gap-1">
       <span className="text-xs text-[#8B98AD]">{label}</span>
-      <button type="button" aria-label={`${label}减少一层`} className={btn} disabled={value <= 1} onClick={() => onChange(value - 1)}>
+      <button type="button" aria-label={t('lineage.toolbar.depth.decrease', { label })} className={btn} disabled={value <= 1} onClick={() => onChange(value - 1)}>
         <Minus className="size-3" />
       </button>
       <span className="w-4 text-center font-mono text-[13px] text-[#CBD5E1]">{value}</span>
-      <button type="button" aria-label={`${label}增加一层`} className={btn} disabled={value >= 5} onClick={() => onChange(value + 1)}>
+      <button type="button" aria-label={t('lineage.toolbar.depth.increase', { label })} className={btn} disabled={value >= 5} onClick={() => onChange(value + 1)}>
         <Plus className="size-3" />
       </button>
-      <span className="text-xs text-[#8B98AD]">层</span>
+      <span className="text-xs text-[#8B98AD]">{t('lineage.toolbar.depth.unit')}</span>
     </span>
   )
 }
@@ -234,6 +241,7 @@ export interface ToolbarProps {
 }
 
 export function Toolbar(props: ToolbarProps) {
+  const { t } = useT()
   const { mode, onModeChange, tables, onPickTable, direction, onToggleDirection } = props
   return (
     <motion.div
@@ -254,16 +262,16 @@ export function Toolbar(props: ToolbarProps) {
         />
       ) : (
         <FloatingBox className="gap-3 px-3">
-          <DepthStepper label="上游" value={props.upDepth} onChange={(v) => props.onDepthChange('up', v)} />
+          <DepthStepper label={t('lineage.toolbar.depth.upstream')} value={props.upDepth} onChange={(v) => props.onDepthChange('up', v)} />
           <span className="h-4 w-px bg-[#263349]" />
-          <DepthStepper label="下游" value={props.downDepth} onChange={(v) => props.onDepthChange('down', v)} />
+          <DepthStepper label={t('lineage.toolbar.depth.downstream')} value={props.downDepth} onChange={(v) => props.onDepthChange('down', v)} />
         </FloatingBox>
       )}
       <FloatingBox className="w-10 justify-center">
         <button
           type="button"
           onClick={onToggleDirection}
-          title={direction === 'LR' ? '切换为纵向布局(TB)' : '切换为横向布局(LR)'}
+          title={t(direction === 'LR' ? 'lineage.toolbar.direction.toTB' : 'lineage.toolbar.direction.toLR')}
           className="flex size-8 items-center justify-center rounded-md text-[#8B98AD] transition-colors duration-120 hover:bg-[rgba(148,163,184,0.08)] hover:text-[#CBD5E1]"
         >
           {direction === 'LR' ? <ArrowRight className="size-3.5" /> : <ArrowDown className="size-3.5" />}

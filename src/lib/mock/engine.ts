@@ -356,7 +356,7 @@ export function engineParse(sqlText: string, targetTable?: string): EngineParseR
     edges,
     columnsByTable,
     alters,
-    warnings: local.warnings,
+    warnings: local.warnings.map((w) => w.text),
   }
 }
 

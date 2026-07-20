@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /**
  * Drawer 右侧抽屉(design.md §9.5 + §8.5)
@@ -28,6 +29,7 @@ export function Drawer({
   /** 深色变体(血缘画布详情抽屉) */
   dark?: boolean
 }) {
+  const { t } = useT()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -72,7 +74,7 @@ export function Drawer({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="关闭"
+                aria-label={t('common.close')}
                 className={cn(
                   'rounded p-1 transition-colors duration-120',
                   dark ? 'text-slate-400 hover:text-white' : 'text-slate-400 hover:text-slate-900',
