@@ -155,7 +155,7 @@ export const SEED_REPORTS: {
     system: '财务系统',
     owner: '李四',
     owner_contact: 'lisi@example.com',
-    schedule: '每月 1 日 09:00',
+    schedule: '每月 1 日 06:00',
     description: '财务口径收入月报',
   },
   {
@@ -164,7 +164,7 @@ export const SEED_REPORTS: {
     system: 'BI 平台',
     owner: '王五',
     owner_contact: 'wangwu@example.com',
-    schedule: '每日 09:30',
+    schedule: '每日 09:00',
     description: '用户复购行为分析看板',
   },
 ]
