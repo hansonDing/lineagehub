@@ -111,6 +111,58 @@ class ScriptUpdateResponse(ParseResponse):
     change_event_id: Optional[int] = None
 
 
+# ---------------------------------------------------------------- 批量导入
+class BatchImportRequest(BaseModel):
+    """批量导入 SQL 目录请求。"""
+
+    dir_path: str
+    recursive: bool = True  # 是否递归子目录
+
+
+class BatchImportResultItem(BaseModel):
+    """单文件导入结果:status = ok(无警告)/ warning(有警告)/ error(异常或解析全废)。"""
+
+    file: str  # 相对目录的文件路径
+    script_id: Optional[int] = None  # 成功落库的脚本 ID(读取失败时为 None)
+    status: str
+    target_tables: list[str] = []
+    source_tables: list[str] = []
+    edges_created: int = 0
+    warnings: list[str] = []
+    error: Optional[str] = None  # 仅 status=error 时有值
+
+
+class BatchImportSummary(BaseModel):
+    total: int
+    ok: int
+    warning: int
+    error: int
+    edges_created: int
+
+
+class BatchImportResponse(BaseModel):
+    summary: BatchImportSummary
+    results: list[BatchImportResultItem]
+
+
+# ---------------------------------------------------------------- 鉴权(演示级)
+class AuthUser(BaseModel):
+    """预设用户(姓名 + 角色,供登录页展示,不含密码)。"""
+
+    name: str
+    role: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    token: str
+    user: AuthUser
+
+
 # ---------------------------------------------------------------- 报表
 class ReportIn(BaseModel):
     name: str

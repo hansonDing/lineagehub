@@ -11,7 +11,16 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.database import DB_PATH, SessionLocal, init_db
-from backend.app.routers import changes, dashboard, lineage, reports, scripts, systems, tables
+from backend.app.routers import (
+    auth,
+    changes,
+    dashboard,
+    lineage,
+    reports,
+    scripts,
+    systems,
+    tables,
+)
 from backend.app.seed import seed_if_empty
 
 # 前端构建产物目录:默认仓库根的 dist(即 backend/../dist),可用环境变量覆盖
@@ -53,6 +62,8 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------- API 路由
+# 演示级假鉴权:只提供登录/验签端点,不保护既有业务端点
+app.include_router(auth.router, prefix="/api")
 app.include_router(systems.router, prefix="/api")
 app.include_router(tables.router, prefix="/api")
 app.include_router(scripts.router, prefix="/api")
