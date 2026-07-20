@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /**
  * CodeEditor SQL/DDL 代码编辑区(design.md §9.9)
@@ -90,12 +91,11 @@ function LineNumbers({ count, diff }: { count: number; diff?: DiffLine[] }) {
 }
 
 function StatusBar({ line, column }: { line: number; column: number }) {
+  const { t } = useT()
   return (
     <div className="flex h-7 shrink-0 items-center justify-between rounded-b-lg border-t border-[#1E293B] bg-slate-900 px-3 text-[11px] text-slate-500">
-      <span>Spark SQL · sqlglot 解析</span>
-      <span className="font-mono">
-        行 {line},列 {column} · UTF-8
-      </span>
+      <span>{t('common.editor.engine')}</span>
+      <span className="font-mono">{t('common.editor.position', { line, column })}</span>
     </div>
   )
 }

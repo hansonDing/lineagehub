@@ -1,7 +1,7 @@
 import { FileCode2, FileDiff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChangeType } from '@/lib/api'
-import { CHANGE_TYPE_NAMES } from '@/lib/format'
+import { useT } from '@/lib/i18n'
 
 /**
  * StatusBadge 状态徽标(design.md §9.2)
@@ -19,19 +19,19 @@ const TONE_STYLES: Record<Tone, { bg: string; text: string; dot: string }> = {
   neutral: { bg: 'bg-slate-100', text: 'text-slate-500', dot: '#94A3B8' },
 }
 
-/** 语义状态 → 中文文案 + 色调 的映射(不挪作装饰) */
-const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
-  pending: { label: '待审批', tone: 'pending' },
-  approving: { label: '审批中', tone: 'pending' },
-  approved: { label: '已通过', tone: 'success' },
-  effective: { label: '已生效', tone: 'success' },
-  rejected: { label: '已驳回', tone: 'danger' },
-  parsed: { label: '已解析', tone: 'success' },
-  parsing: { label: '解析中', tone: 'info' },
-  parse_failed: { label: '解析失败', tone: 'danger' },
-  warning: { label: '警告', tone: 'warning' },
-  running: { label: '运行中', tone: 'success' },
-  paused: { label: '已暂停', tone: 'neutral' },
+/** 语义状态 → 色调 映射(文案走 i18n `common.status.*`;不在映射表内时状态键原样显示,色调 neutral) */
+const STATUS_TONES: Record<string, Tone> = {
+  pending: 'pending',
+  approving: 'pending',
+  approved: 'success',
+  effective: 'success',
+  rejected: 'danger',
+  parsed: 'success',
+  parsing: 'info',
+  parse_failed: 'danger',
+  warning: 'warning',
+  running: 'success',
+  paused: 'neutral',
 }
 
 export interface StatusBadgeProps {
@@ -45,8 +45,10 @@ export interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, label, hideDot, className }: StatusBadgeProps) {
-  const preset = STATUS_MAP[status] ?? { label: status, tone: 'neutral' as Tone }
-  const styles = TONE_STYLES[preset.tone]
+  const { t } = useT()
+  const known = status in STATUS_TONES
+  const tone = known ? STATUS_TONES[status] : 'neutral'
+  const styles = TONE_STYLES[tone]
   return (
     <span
       className={cn(
@@ -62,13 +64,14 @@ export function StatusBadge({ status, label, hideDot, className }: StatusBadgePr
           style={{ backgroundColor: styles.dot }}
         />
       )}
-      {label ?? preset.label}
+      {label ?? (known ? t(`common.status.${status}`) : status)}
     </span>
   )
 }
 
 /** 变更类型徽标:DDL 变更(FileDiff)/ SQL 变更(FileCode2),slate 底 */
 export function ChangeTypeBadge({ type, className }: { type: ChangeType; className?: string }) {
+  const { t } = useT()
   const Icon = type === 'ddl_change' ? FileDiff : FileCode2
   return (
     <span
@@ -78,7 +81,7 @@ export function ChangeTypeBadge({ type, className }: { type: ChangeType; classNa
       )}
     >
       <Icon className="size-3" />
-      {CHANGE_TYPE_NAMES[type]}
+      {t(`common.changeType.${type}`)}
     </span>
   )
 }

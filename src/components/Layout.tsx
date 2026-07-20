@@ -26,6 +26,8 @@ import {
 import { Avatar } from '@/components/common/Avatar'
 import { LayerBadge } from '@/components/common/LayerBadge'
 import { Toaster } from '@/components/common/Toast'
+import { LangSwitcher } from '@/components/LangSwitcher'
+import { useT } from '@/lib/i18n'
 import { DEMO_USERS, useUser } from '@/hooks/useUser'
 
 /** 审批收件箱刷新事件:审批操作后 dispatch 以更新侧栏徽标 */
@@ -35,19 +37,20 @@ export function notifyApprovalsChanged() {
 }
 
 const NAV_ITEMS = [
-  { to: '/', label: '总览', icon: LayoutDashboard, end: true },
-  { to: '/lineage', label: '血缘图谱', icon: Network },
-  { to: '/sql', label: 'SQL 管理', icon: FileCode2 },
-  { to: '/metadata', label: '元数据配置', icon: Database },
-  { to: '/changes', label: '变更与审批', icon: GitPullRequest },
+  { to: '/', i18nKey: 'layout.nav.dashboard', icon: LayoutDashboard, end: true },
+  { to: '/lineage', i18nKey: 'layout.nav.lineage', icon: Network },
+  { to: '/sql', i18nKey: 'layout.nav.sql', icon: FileCode2 },
+  { to: '/metadata', i18nKey: 'layout.nav.metadata', icon: Database },
+  { to: '/changes', i18nKey: 'layout.nav.changes', icon: GitPullRequest },
 ] as const
 
-const ROUTE_TITLES: Record<string, string> = {
-  '/': '总览',
-  '/lineage': '血缘图谱',
-  '/sql': 'SQL 管理',
-  '/metadata': '元数据配置',
-  '/changes': '变更与审批',
+/** 面包屑页名:路由 → i18n key */
+const ROUTE_TITLE_KEYS: Record<string, string> = {
+  '/': 'layout.nav.dashboard',
+  '/lineage': 'layout.nav.lineage',
+  '/sql': 'layout.nav.sql',
+  '/metadata': 'layout.nav.metadata',
+  '/changes': 'layout.nav.changes',
 }
 
 // ---------- 侧栏 ----------
@@ -57,6 +60,7 @@ function SidebarSection({ children }: { children: ReactNode }) {
 }
 
 function Sidebar({ pendingCount, user }: { pendingCount: number; user: string }) {
+  const { t } = useT()
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-[232px] flex-col bg-ink">
       {/* Logo 区:高 56px,与顶栏齐平 */}
@@ -64,7 +68,7 @@ function Sidebar({ pendingCount, user }: { pendingCount: number; user: string })
         <img src="/logo.svg" alt="LineageHub" width={28} height={28} />
         <div className="leading-tight">
           <div className="text-[15px] font-semibold text-white">LineageHub</div>
-          <div className="text-[11px] text-[#55637A]">数据血缘平台</div>
+          <div className="text-[11px] text-[#55637A]">{t('layout.subtitle')}</div>
         </div>
       </div>
 
@@ -92,7 +96,7 @@ function Sidebar({ pendingCount, user }: { pendingCount: number; user: string })
                     isActive ? 'text-[#5EEAD4]' : 'text-[#55637A] group-hover:text-[#8B98AD]',
                   )}
                 />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1">{t(item.i18nKey)}</span>
                 {item.to === '/changes' && pendingCount > 0 && (
                   <span className="rounded-full bg-pending px-1.5 text-[10px] font-medium leading-4 text-white">
                     {pendingCount > 99 ? '99+' : pendingCount}
@@ -111,7 +115,7 @@ function Sidebar({ pendingCount, user }: { pendingCount: number; user: string })
           <div className="mb-3 rounded-md px-2 py-2">
             <div className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-[#34D399]" />
-              <span className="text-[11px] text-[#55637A]">解析引擎 · sqlglot</span>
+              <span className="text-[11px] text-[#55637A]">{t('layout.engine.name')}</span>
             </div>
             <div className="mt-1 pl-3.5 font-mono text-xs text-[#8B98AD]">dialect = spark</div>
           </div>
@@ -120,7 +124,7 @@ function Sidebar({ pendingCount, user }: { pendingCount: number; user: string })
             <Avatar name={user} size={28} />
             <div className="min-w-0 leading-tight">
               <div className="truncate text-[13px] text-[#CBD5E1]">{user}</div>
-              <div className="text-[11px] text-[#55637A]">数据工程师</div>
+              <div className="text-[11px] text-[#55637A]">{t('layout.user.role')}</div>
             </div>
           </div>
         </div>
@@ -139,6 +143,7 @@ interface SearchResults {
 }
 
 function GlobalSearch() {
+  const { t } = useT()
   const [keyword, setKeyword] = useState('')
   const [focused, setFocused] = useState(false)
   const [results, setResults] = useState<SearchResults | null>(null)
@@ -215,7 +220,7 @@ function GlobalSearch() {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onFocus={() => setFocused(true)}
-          placeholder="搜索表 / 报表 / 系统…"
+          placeholder={t('layout.search.placeholder')}
           className="h-full flex-1 bg-transparent text-[13px] text-slate-900 outline-none placeholder:text-slate-400"
         />
         <kbd className="rounded border border-slate-200 bg-white px-1 font-mono text-[11px] leading-4 text-slate-400">
@@ -225,11 +230,11 @@ function GlobalSearch() {
       {focused && keyword.trim() && (
         <div className="absolute left-0 right-0 top-9 z-50 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-overlay">
           {!hasResults ? (
-            <div className="px-3 py-4 text-center text-xs text-slate-500">未找到匹配的结果</div>
+            <div className="px-3 py-4 text-center text-xs text-slate-500">{t('layout.search.empty')}</div>
           ) : (
             <>
               {results.tables.length > 0 && (
-                <SearchGroup label="数仓表">
+                <SearchGroup label={t('layout.search.group.tables')}>
                   {results.tables.map((t) => (
                     <SearchRow key={`t-${t.id}`} onClick={() => go(`/lineage?table=${t.name}`)}>
                       <span className="flex-1 truncate font-mono text-[13px] text-slate-900">{t.name}</span>
@@ -239,7 +244,7 @@ function GlobalSearch() {
                 </SearchGroup>
               )}
               {results.reports.length > 0 && (
-                <SearchGroup label="报表">
+                <SearchGroup label={t('layout.search.group.reports')}>
                   {results.reports.map((r) => (
                     <SearchRow key={`r-${r.id}`} onClick={() => go('/metadata?tab=reports')}>
                       <span className="flex-1 truncate text-[13px] text-slate-900">{r.name}</span>
@@ -249,7 +254,7 @@ function GlobalSearch() {
                 </SearchGroup>
               )}
               {results.systems.length > 0 && (
-                <SearchGroup label="系统">
+                <SearchGroup label={t('layout.search.group.systems')}>
                   {results.systems.map((s) => (
                     <SearchRow key={`s-${s.id}`} onClick={() => go('/metadata?tab=systems')}>
                       <span className="flex-1 truncate text-[13px] text-slate-900">{s.name}</span>
@@ -258,7 +263,7 @@ function GlobalSearch() {
                 </SearchGroup>
               )}
               {results.scripts.length > 0 && (
-                <SearchGroup label="脚本">
+                <SearchGroup label={t('layout.search.group.scripts')}>
                   {results.scripts.map((s) => (
                     <SearchRow key={`sc-${s.id}`} onClick={() => go('/sql')}>
                       <span className="flex-1 truncate font-mono text-[13px] text-slate-900">{s.name}</span>
@@ -298,6 +303,7 @@ function SearchRow({ children, onClick }: { children: ReactNode; onClick: () => 
 // ---------- 用户切换 ----------
 
 function UserSwitcher({ pendingCount }: { pendingCount: number }) {
+  const { t } = useT()
   const { user, setUser } = useUser()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -315,7 +321,7 @@ function UserSwitcher({ pendingCount }: { pendingCount: number }) {
       {/* 通知铃铛 */}
       <button
         type="button"
-        aria-label="通知"
+        aria-label={t('layout.notifications')}
         className="relative rounded p-1 text-slate-500 transition-colors duration-120 hover:text-slate-900"
       >
         <Bell className="size-4" />
@@ -335,7 +341,7 @@ function UserSwitcher({ pendingCount }: { pendingCount: number }) {
         </button>
         {open && (
           <div className="absolute right-0 top-10 z-50 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-overlay">
-            <div className="px-3 pb-1 pt-2 text-[11px] text-slate-400">切换身份(演示)</div>
+            <div className="px-3 pb-1 pt-2 text-[11px] text-slate-400">{t('layout.user.switch')}</div>
             {DEMO_USERS.map((name) => (
               <button
                 key={name}
@@ -362,6 +368,7 @@ function UserSwitcher({ pendingCount }: { pendingCount: number }) {
 
 export default function Layout() {
   const location = useLocation()
+  const { t } = useT()
   const { user } = useUser()
   const [pendingCount, setPendingCount] = useState(0)
   const [demoMode, setDemoMode] = useState(isDemoMode())
@@ -393,7 +400,7 @@ export default function Layout() {
     return () => window.removeEventListener(APPROVALS_REFRESH_EVENT, refreshPending)
   }, [refreshPending])
 
-  const title = ROUTE_TITLES[location.pathname] ?? '总览'
+  const title = t(ROUTE_TITLE_KEYS[location.pathname] ?? 'layout.nav.dashboard')
   const isCanvasPage = location.pathname === '/lineage'
 
   return (
@@ -410,20 +417,21 @@ export default function Layout() {
           </nav>
           <div className="flex-1" />
           <GlobalSearch />
+          <LangSwitcher />
           {/* 环境徽标 */}
           <span className="flex h-6 items-center gap-1.5 rounded bg-slate-100 px-2 text-xs text-slate-600">
             <span className="size-1.5 rounded-full bg-success" />
-            生产环境
+            {t('layout.env.production')}
           </span>
           {/* 演示模式徽标:后端不可达降级到内置模拟 API 时显示 */}
           {demoMode && (
             <span
-              title="API 不可达,当前为浏览器内置演示数据"
+              title={t('layout.env.demoTip')}
               className="flex h-6 cursor-default items-center gap-1.5 rounded px-2 text-[11px] font-medium"
               style={{ backgroundColor: 'rgba(217, 119, 6, 0.1)', color: '#D97706' }}
             >
               <span className="size-1.5 rounded-full" style={{ backgroundColor: '#D97706' }} />
-              演示模式 · 后端未连接
+              {t('layout.env.demo')}
             </span>
           )}
           <UserSwitcher pendingCount={pendingCount} />

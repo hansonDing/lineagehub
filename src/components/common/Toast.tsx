@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
 /**
  * Toast 轻量管理器(design.md §9.11 + §8.3)
@@ -64,6 +65,7 @@ const TONE_CONFIG: Record<ToastTone, { icon: typeof CheckCircle2; className: str
 
 /** 挂一次(建议 Layout 内),渲染右上角 Toast 堆叠 */
 export function Toaster() {
+  const { t } = useT()
   const [current, setCurrent] = useState<ToastItem[]>([])
 
   useEffect(() => {
@@ -78,12 +80,12 @@ export function Toaster() {
   return (
     <div className="pointer-events-none fixed right-4 top-16 z-[100] flex w-80 flex-col gap-2">
       <AnimatePresence initial={false}>
-        {current.map((t) => {
-          const config = TONE_CONFIG[t.tone]
+        {current.map((item) => {
+          const config = TONE_CONFIG[item.tone]
           const Icon = config.icon
           return (
             <motion.div
-              key={t.id}
+              key={item.id}
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 16 }}
@@ -92,16 +94,16 @@ export function Toaster() {
             >
               <Icon className={cn('mt-px size-4 shrink-0', config.className)} />
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-slate-900">{t.title}</p>
-                {t.description && (
-                  <p className="mt-0.5 break-words text-xs text-slate-500">{t.description}</p>
+                <p className="text-[13px] font-semibold text-slate-900">{item.title}</p>
+                {item.description && (
+                  <p className="mt-0.5 break-words text-xs text-slate-500">{item.description}</p>
                 )}
               </div>
               <button
                 type="button"
-                onClick={() => dismiss(t.id)}
+                onClick={() => dismiss(item.id)}
                 className="rounded p-0.5 text-slate-400 transition-colors hover:text-slate-900"
-                aria-label="关闭"
+                aria-label={t('common.close')}
               >
                 <X className="size-3.5" />
               </button>
