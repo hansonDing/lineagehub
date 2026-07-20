@@ -2,7 +2,14 @@
  * LineageHub 前端 API 客户端
  * 与 architecture.md 第 2 节 REST API 契约逐一对应。
  * 全部走相对路径 /api/...,开发期由 vite proxy 转发到后端。
+ *
+ * 演示模式:线上预览等后端不可达(网络错误 / 5xx / 非 JSON 响应)时,
+ * 每个端点自动降级到 src/lib/mock 的浏览器内置模拟 API,全页面可用;
+ * 4xx(404/409 等业务错误)不降级,按原逻辑抛 ApiError。
  */
+
+import { toast } from '@/components/common/Toast'
+import * as mock from './mock/handlers'
 
 // ---------- 类型(与 architecture.md 第 1 节数据模型对应) ----------
 
@@ -291,9 +298,63 @@ async function request<T>(
   return (await res.json()) as T
 }
 
+// ---------- 演示模式(API 不可达时自动降级到浏览器内置模拟 API) ----------
+
+export type DemoModeListener = (active: boolean) => void
+
+let demoMode = false
+let demoModeNoticed = false
+const demoModeListeners = new Set<DemoModeListener>()
+
+/** 当前是否处于浏览器内置演示模式 */
+export function isDemoMode(): boolean {
+  return demoMode
+}
+
+/** 演示模式订阅集合(Layout 等 UI 订阅,add/delete 监听器) */
+export function getDemoModeListeners(): Set<DemoModeListener> {
+  return demoModeListeners
+}
+
+/** 通知所有订阅者演示模式状态发生变化 */
+export function notifyDemoMode(): void {
+  for (const fn of [...demoModeListeners]) fn(demoMode)
+}
+
+/** 首次降级时进入演示模式:console.warn 一次 + Toast 提示一次 + 通知订阅者 */
+function enterDemoMode(): void {
+  if (demoMode) return
+  demoMode = true
+  if (!demoModeNoticed) {
+    demoModeNoticed = true
+    console.warn('[LineageHub] 后端 API 不可达,已切换到浏览器内置演示模式')
+    try {
+      toast.info('后端 API 不可达,已切换到内置演示模式')
+    } catch {
+      /* Toaster 未挂载等场景下静默 */
+    }
+  }
+  notifyDemoMode()
+}
+
+/**
+ * 端点降级包装:优先真实 fetch;5xx / 网络错误 / 非 JSON 响应时进入演示模式并转调 mock 同名实现;
+ * 4xx 业务错误不降级,原样抛出 ApiError。进入演示模式后后续调用直接走 mock。
+ */
+async function withFallback<T>(real: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
+  if (demoMode) return fallback()
+  try {
+    return await real()
+  } catch (err) {
+    if (err instanceof ApiError && err.status >= 400 && err.status < 500) throw err
+    enterDemoMode()
+    return fallback()
+  }
+}
+
 // ---------- 系统 ----------
 
-export const listSystems = () => request<System[]>('/systems')
+export const listSystems = () => withFallback(() => request<System[]>('/systems'), mock.listSystems)
 
 export const createSystem = (payload: {
   name: string
@@ -301,13 +362,23 @@ export const createSystem = (payload: {
   owner: string
   contact: string
   description: string
-}) => request<System>('/systems', { method: 'POST', body: payload })
+}) =>
+  withFallback(
+    () => request<System>('/systems', { method: 'POST', body: payload }),
+    () => mock.createSystem(payload),
+  )
 
 export const updateSystem = (id: number, payload: Partial<Omit<System, 'id'>>) =>
-  request<System>(`/systems/${id}`, { method: 'PUT', body: payload })
+  withFallback(
+    () => request<System>(`/systems/${id}`, { method: 'PUT', body: payload }),
+    () => mock.updateSystem(id, payload),
+  )
 
 export const deleteSystem = (id: number) =>
-  request<void>(`/systems/${id}`, { method: 'DELETE' })
+  withFallback(
+    () => request<void>(`/systems/${id}`, { method: 'DELETE' }),
+    () => mock.deleteSystem(id),
+  )
 
 // ---------- 表 ----------
 
@@ -315,58 +386,98 @@ export const listTables = (params?: {
   keyword?: string
   layer?: TableLayer
   source_system_id?: number
-}) => request<TableListItem[]>('/tables', { query: { ...params } })
+}) =>
+  withFallback(
+    () => request<TableListItem[]>('/tables', { query: { ...params } }),
+    () => mock.listTables(params),
+  )
 
-export const getTable = (id: number) => request<TableDetail>(`/tables/${id}`)
+export const getTable = (id: number) =>
+  withFallback(
+    () => request<TableDetail>(`/tables/${id}`),
+    () => mock.getTable(id),
+  )
 
 export const updateTable = (
   id: number,
   payload: { source_system_id?: number | null; owner?: string; description?: string },
-) => request<DataTable>(`/tables/${id}`, { method: 'PUT', body: payload })
+) =>
+  withFallback(
+    () => request<DataTable>(`/tables/${id}`, { method: 'PUT', body: payload }),
+    () => mock.updateTable(id, payload),
+  )
 
 // ---------- 脚本与解析 ----------
 
-export const listScripts = () => request<SqlScript[]>('/scripts')
+export const listScripts = () => withFallback(() => request<SqlScript[]>('/scripts'), mock.listScripts)
 
-export const getScript = (id: number) => request<SqlScriptDetail>(`/scripts/${id}`)
+export const getScript = (id: number) =>
+  withFallback(
+    () => request<SqlScriptDetail>(`/scripts/${id}`),
+    () => mock.getScript(id),
+  )
 
 export const parseScript = (payload: {
   name: string
   sql_text: string
   target_table?: string
-}) => request<ParseResult>('/scripts/parse', { method: 'POST', body: payload })
+}) =>
+  withFallback(
+    () => request<ParseResult>('/scripts/parse', { method: 'POST', body: payload }),
+    () => mock.parseScript(payload),
+  )
 
 export const updateScript = (id: number, payload: { sql_text: string }) =>
-  request<ParseResult>(`/scripts/${id}`, { method: 'PUT', body: payload })
+  withFallback(
+    () => request<ParseResult>(`/scripts/${id}`, { method: 'PUT', body: payload }),
+    () => mock.updateScript(id, payload),
+  )
 
 export const deleteScript = (id: number) =>
-  request<void>(`/scripts/${id}`, { method: 'DELETE' })
+  withFallback(
+    () => request<void>(`/scripts/${id}`, { method: 'DELETE' }),
+    () => mock.deleteScript(id),
+  )
 
 // ---------- 报表 ----------
 
-export const listReports = () => request<ReportListItem[]>('/reports')
+export const listReports = () => withFallback(() => request<ReportListItem[]>('/reports'), mock.listReports)
 
 export const createReport = (payload: Omit<Report, 'id'>) =>
-  request<Report>('/reports', { method: 'POST', body: payload })
+  withFallback(
+    () => request<Report>('/reports', { method: 'POST', body: payload }),
+    () => mock.createReport(payload),
+  )
 
 export const updateReport = (id: number, payload: Partial<Omit<Report, 'id'>>) =>
-  request<Report>(`/reports/${id}`, { method: 'PUT', body: payload })
+  withFallback(
+    () => request<Report>(`/reports/${id}`, { method: 'PUT', body: payload }),
+    () => mock.updateReport(id, payload),
+  )
 
 export const deleteReport = (id: number) =>
-  request<void>(`/reports/${id}`, { method: 'DELETE' })
+  withFallback(
+    () => request<void>(`/reports/${id}`, { method: 'DELETE' }),
+    () => mock.deleteReport(id),
+  )
 
 // ---------- 血缘图 ----------
 
-export const getLineageOverview = () => request<GraphResponse>('/lineage/overview')
+export const getLineageOverview = () =>
+  withFallback(() => request<GraphResponse>('/lineage/overview'), mock.getLineageOverview)
 
 export const getLineageGraph = (params: {
   table_id: number
   direction?: 'upstream' | 'downstream' | 'both'
   depth?: number
 }) =>
-  request<GraphResponse>('/lineage/graph', {
-    query: { direction: 'both', depth: 3, ...params },
-  })
+  withFallback(
+    () =>
+      request<GraphResponse>('/lineage/graph', {
+        query: { direction: 'both', depth: 3, ...params },
+      }),
+    () => mock.getLineageGraph(params),
+  )
 
 // ---------- 变更与审批 ----------
 
@@ -374,26 +485,46 @@ export const submitDdlChange = (payload: {
   table_id: number
   new_ddl: string
   submitted_by: string
-}) => request<ChangeEvent>('/changes/ddl', { method: 'POST', body: payload })
+}) =>
+  withFallback(
+    () => request<ChangeEvent>('/changes/ddl', { method: 'POST', body: payload }),
+    () => mock.submitDdlChange(payload),
+  )
 
 export const submitSqlChange = (payload: {
   script_id: number
   new_sql: string
   submitted_by: string
-}) => request<ChangeEvent>('/changes/sql', { method: 'POST', body: payload })
+}) =>
+  withFallback(
+    () => request<ChangeEvent>('/changes/sql', { method: 'POST', body: payload }),
+    () => mock.submitSqlChange(payload),
+  )
 
-export const listChanges = () => request<ChangeEventSummary[]>('/changes')
+export const listChanges = () => withFallback(() => request<ChangeEventSummary[]>('/changes'), mock.listChanges)
 
-export const getChange = (id: number) => request<ImpactDetail>(`/changes/${id}`)
+export const getChange = (id: number) =>
+  withFallback(
+    () => request<ImpactDetail>(`/changes/${id}`),
+    () => mock.getChange(id),
+  )
 
 export const listApprovals = (params?: { status?: ApprovalStatus; approver?: string }) =>
-  request<ApprovalInboxItem[]>('/approvals', { query: { ...params } })
+  withFallback(
+    () => request<ApprovalInboxItem[]>('/approvals', { query: { ...params } }),
+    () => mock.listApprovals(params),
+  )
 
 export const decideApproval = (
   id: number,
   payload: { decision: ApprovalDecision; comment?: string },
-) => request<ChangeEvent>(`/approvals/${id}/decision`, { method: 'POST', body: payload })
+) =>
+  withFallback(
+    () => request<ChangeEvent>(`/approvals/${id}/decision`, { method: 'POST', body: payload }),
+    () => mock.decideApproval(id, payload),
+  )
 
 // ---------- 仪表盘 ----------
 
-export const getDashboardStats = () => request<DashboardStats>('/dashboard/stats')
+export const getDashboardStats = () =>
+  withFallback(() => request<DashboardStats>('/dashboard/stats'), mock.getDashboardStats)

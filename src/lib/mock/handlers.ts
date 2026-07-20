@@ -1,0 +1,764 @@
+/**
+ * 演示模式模拟 API:实现 src/lib/api.ts 暴露的全部端点(同名导出,签名一致)。
+ * 语义逐一对齐 backend/app/routers/*(含 404/409/400 错误与审批状态机),
+ * 数据操作落在 store 的内存状态上,写操作后持久化到 localStorage。
+ */
+
+import type {
+  ApprovalDecision,
+  ApprovalInboxItem,
+  ApprovalStatus,
+  ChangeDiff,
+  ChangeEvent,
+  ChangeEventSummary,
+  DashboardStats,
+  DataTable,
+  GraphNode,
+  GraphResponse,
+  HotTable,
+  ImpactDetail,
+  LineageEdge,
+  ParseResult,
+  Report,
+  ReportListItem,
+  SqlScript,
+  SqlScriptDetail,
+  System,
+  SystemKind,
+  TableDetail,
+  TableLayer,
+  TableListItem,
+} from '@/lib/api'
+import {
+  applyChange,
+  columnsOf,
+  createChangeEvent,
+  ddlDiff,
+  detectSqlType,
+  engineParse,
+  nextId,
+  nowIso,
+  persistParse,
+  renderDdl,
+  type MockState,
+} from './engine'
+import { getState, persist } from './store'
+
+// ---------------------------------------------------------------- 错误(与 ApiError 同构:status + message)
+
+export class MockApiError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+function fail(status: number, message: string): never {
+  throw new MockApiError(status, message)
+}
+
+// ---------------------------------------------------------------- 通用辅助
+
+function systemById(state: MockState, id: number | null | undefined): System | undefined {
+  return id == null ? undefined : state.systems.find((s) => s.id === id)
+}
+
+function tableOut(state: MockState, table: DataTable): TableListItem {
+  return {
+    ...table,
+    source_system_name: systemById(state, table.source_system_id)?.name ?? null,
+    column_count: columnsOf(state, table.id).length,
+  }
+}
+
+function reportOut(state: MockState, report: Report): ReportListItem {
+  return {
+    ...report,
+    table_name: state.tables.find((t) => t.id === report.table_id)?.name ?? '',
+    target_system_name: systemById(state, report.target_system_id)?.name ?? '',
+  }
+}
+
+function scriptListItem(s: SqlScriptDetail): SqlScript {
+  return {
+    id: s.id,
+    name: s.name,
+    sql_type: s.sql_type,
+    target_table: s.target_table,
+    version: s.version,
+    created_at: s.created_at,
+    updated_at: s.updated_at,
+  }
+}
+
+function nodeOut(state: MockState, table: DataTable, reportTableIds: Set<number>): GraphNode {
+  return {
+    id: table.id,
+    name: table.name,
+    layer: table.layer,
+    source_system: systemById(state, table.source_system_id)?.name ?? null,
+    owner: table.owner || '',
+    is_report_source: reportTableIds.has(table.id),
+  }
+}
+
+function edgeOut(state: MockState, edge: LineageEdge): GraphResponse['edges'][number] {
+  return {
+    id: edge.id,
+    source: edge.src_table_id,
+    target: edge.dst_table_id,
+    script_name: state.scripts.find((s) => s.id === edge.script_id)?.name ?? null,
+  }
+}
+
+function reportTableIds(state: MockState): Set<number> {
+  return new Set(state.reports.map((r) => r.table_id))
+}
+
+/** 事件摘要:同时携带后端真实计数字段(impact_count/pending_tasks/approved_tasks)
+ * 与 api.ts 声明字段(impacted_*_count/*_task_count),两种消费方式都可用。 */
+type ChangeSummarySuperset = ChangeEventSummary & {
+  impact_count: number
+  pending_tasks: number
+  approved_tasks: number
+}
+
+function eventSummary(state: MockState, event: ChangeEvent): ChangeSummarySuperset {
+  const tasks = state.approvals.filter((a) => a.change_event_id === event.id)
+  const uniqTargets = (type: string) =>
+    new Set(tasks.filter((t) => t.target_type === type).map((t) => t.target_id)).size
+  const impact = new Set(tasks.map((t) => `${t.target_type}:${t.target_id}`)).size
+  const pending = tasks.filter((t) => t.status === 'pending').length
+  const approved = tasks.filter((t) => t.status === 'approved').length
+  const rejected = tasks.filter((t) => t.status === 'rejected').length
+  return {
+    ...event,
+    impact_count: impact,
+    pending_tasks: pending,
+    approved_tasks: approved,
+    impacted_report_count: uniqTargets('report'),
+    impacted_system_count: uniqTargets('system'),
+    impacted_table_count: uniqTargets('table'),
+    pending_task_count: pending,
+    approved_task_count: approved,
+    rejected_task_count: rejected,
+  }
+}
+
+/** 变更详情(由审批任务还原影响面,口径同后端 event_impact) */
+function changeDetail(state: MockState, event: ChangeEvent): ImpactDetail {
+  let diff: ChangeDiff = {}
+  try {
+    diff = JSON.parse(event.diff_summary || '{}') as ChangeDiff
+  } catch {
+    /* diff_summary 非 JSON 时给空 */
+  }
+  const approvals = state.approvals
+    .filter((a) => a.change_event_id === event.id)
+    .sort((a, b) => a.id - b.id)
+  const impactedReports: ReportListItem[] = []
+  const impactedSystems: System[] = []
+  const impactedTables: DataTable[] = []
+  for (const t of approvals) {
+    if (t.target_type === 'report') {
+      const rep = state.reports.find((r) => r.id === t.target_id)
+      impactedReports.push(
+        rep
+          ? reportOut(state, rep)
+          : ({
+              id: t.target_id,
+              name: t.target_name,
+              table_id: 0,
+              target_system_id: 0,
+              owner: t.approver_name,
+              owner_contact: '',
+              schedule: '',
+              description: '',
+              table_name: '',
+              target_system_name: '',
+            } as ReportListItem),
+      )
+    } else if (t.target_type === 'system') {
+      const sys = systemById(state, t.target_id)
+      impactedSystems.push(
+        sys ?? {
+          id: t.target_id,
+          name: t.target_name,
+          kind: 'target' as SystemKind,
+          owner: t.approver_name,
+          contact: '',
+          description: '',
+        },
+      )
+    } else if (t.target_type === 'table') {
+      const tbl = state.tables.find((x) => x.id === t.target_id)
+      impactedTables.push(
+        tbl ?? {
+          id: t.target_id,
+          name: t.target_name,
+          layer: 'other' as TableLayer,
+          source_system_id: null,
+          owner: t.approver_name,
+          description: '',
+          created_at: event.created_at,
+          updated_at: event.created_at,
+        },
+      )
+    }
+  }
+  return {
+    event,
+    diff,
+    impacted_reports: impactedReports,
+    impacted_systems: impactedSystems,
+    impacted_tables: impactedTables,
+    approvals,
+  }
+}
+
+// ---------------------------------------------------------------- 系统
+
+export async function listSystems(): Promise<System[]> {
+  return [...getState().systems].sort((a, b) => a.id - b.id)
+}
+
+export async function createSystem(payload: {
+  name: string
+  kind: SystemKind
+  owner: string
+  contact: string
+  description: string
+}): Promise<System> {
+  const state = getState()
+  if (state.systems.some((s) => s.name === payload.name)) {
+    fail(409, `系统 ${payload.name} 已存在`)
+  }
+  const system: System = { id: nextId(state, 'system'), ...payload }
+  state.systems.push(system)
+  persist()
+  return system
+}
+
+export async function updateSystem(id: number, payload: Partial<Omit<System, 'id'>>): Promise<System> {
+  const state = getState()
+  const system = systemById(state, id)
+  if (!system) fail(404, '系统不存在')
+  if (payload.name !== undefined && state.systems.some((s) => s.name === payload.name && s.id !== id)) {
+    fail(409, `系统 ${payload.name} 已存在`)
+  }
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined) (system as unknown as Record<string, unknown>)[k] = v
+  }
+  persist()
+  return system
+}
+
+export async function deleteSystem(id: number): Promise<void> {
+  const state = getState()
+  const system = systemById(state, id)
+  if (!system) fail(404, '系统不存在')
+  if (state.tables.some((t) => t.source_system_id === id)) {
+    fail(409, '系统被数仓表引用,无法删除')
+  }
+  if (state.reports.some((r) => r.target_system_id === id)) {
+    fail(409, '系统被报表引用,无法删除')
+  }
+  state.systems = state.systems.filter((s) => s.id !== id)
+  persist()
+}
+
+// ---------------------------------------------------------------- 表
+
+export async function listTables(params?: {
+  keyword?: string
+  layer?: TableLayer
+  source_system_id?: number
+}): Promise<TableListItem[]> {
+  const state = getState()
+  let tables = [...state.tables]
+  const keyword = params?.keyword?.trim().toLowerCase()
+  if (keyword) tables = tables.filter((t) => t.name.includes(keyword))
+  if (params?.layer) tables = tables.filter((t) => t.layer === params.layer)
+  if (params?.source_system_id !== undefined) {
+    tables = tables.filter((t) => t.source_system_id === params.source_system_id)
+  }
+  return tables.sort((a, b) => a.name.localeCompare(b.name)).map((t) => tableOut(state, t))
+}
+
+export async function getTable(id: number): Promise<TableDetail> {
+  const state = getState()
+  const table = state.tables.find((t) => t.id === id)
+  if (!table) fail(404, '表不存在')
+  return {
+    ...tableOut(state, table),
+    columns: columnsOf(state, table.id),
+  }
+}
+
+export async function updateTable(
+  id: number,
+  payload: { source_system_id?: number | null; owner?: string; description?: string },
+): Promise<DataTable> {
+  const state = getState()
+  const table = state.tables.find((t) => t.id === id)
+  if (!table) fail(404, '表不存在')
+  if ('source_system_id' in payload && payload.source_system_id != null && !systemById(state, payload.source_system_id)) {
+    fail(400, 'source_system_id 指向的系统不存在')
+  }
+  if ('source_system_id' in payload) table.source_system_id = payload.source_system_id ?? null
+  if (payload.owner !== undefined) table.owner = payload.owner
+  if (payload.description !== undefined) table.description = payload.description
+  table.updated_at = nowIso()
+  persist()
+  return tableOut(state, table)
+}
+
+// ---------------------------------------------------------------- 脚本与解析
+
+export async function listScripts(): Promise<SqlScript[]> {
+  return [...getState().scripts].sort((a, b) => a.id - b.id).map(scriptListItem)
+}
+
+export async function getScript(id: number): Promise<SqlScriptDetail> {
+  const script = getState().scripts.find((s) => s.id === id)
+  if (!script) fail(404, '脚本不存在')
+  return { ...script }
+}
+
+export async function parseScript(payload: {
+  name: string
+  sql_text: string
+  target_table?: string
+}): Promise<ParseResult> {
+  const state = getState()
+  const result = engineParse(payload.sql_text, payload.target_table)
+  const now = nowIso()
+  const script: SqlScriptDetail = {
+    id: nextId(state, 'script'),
+    name: payload.name,
+    sql_type: detectSqlType(result),
+    sql_text: payload.sql_text,
+    target_table: payload.target_table ?? null,
+    version: 1,
+    created_at: now,
+    updated_at: now,
+  }
+  state.scripts.push(script)
+  const info = persistParse(state, result, script)
+  persist()
+  return {
+    script_id: script.id,
+    target_tables: result.targets,
+    source_tables: result.sources,
+    tables_created: info.tables_created,
+    edges_created: info.edges_created,
+    warnings: result.warnings,
+  }
+}
+
+export async function updateScript(id: number, payload: { sql_text: string }): Promise<ParseResult> {
+  const state = getState()
+  const script = state.scripts.find((s) => s.id === id)
+  if (!script) fail(404, '脚本不存在')
+
+  const oldSql = script.sql_text
+  const result = engineParse(payload.sql_text, script.target_table ?? undefined)
+
+  // 记录旧目标表(影响分析需要覆盖新旧两侧)
+  const oldTargets = new Set(
+    state.edges
+      .filter((e) => e.script_id === script.id)
+      .map((e) => state.tables.find((t) => t.id === e.dst_table_id)?.name)
+      .filter((n): n is string => Boolean(n)),
+  )
+
+  script.sql_text = payload.sql_text
+  script.sql_type = detectSqlType(result)
+  script.version = (script.version || 1) + 1
+  script.updated_at = nowIso()
+  const syncInfo = persistParse(state, result, script)
+
+  let changeEventId: number | null = null
+  if (syncInfo.added.length > 0 || syncInfo.removed.length > 0) {
+    // 血缘发生变化 -> 自动创建 sql_change 事件并生成审批任务
+    const targetNames = new Set([...oldTargets, ...result.targets])
+    const seedIds = state.tables.filter((t) => targetNames.has(t.name)).map((t) => t.id)
+    const sortedAdded = [...syncInfo.added].sort()
+    const sortedRemoved = [...syncInfo.removed].sort()
+    const diff = {
+      edges_added: sortedAdded.map(([source, target]) => ({ source, target })),
+      edges_removed: sortedRemoved.map(([source, target]) => ({ source, target })),
+    } as ChangeDiff
+    const event = createChangeEvent(state, {
+      change_type: 'sql_change',
+      object_name: script.name,
+      old_text: oldSql,
+      new_text: payload.sql_text,
+      diff,
+      submitted_by: 'script_editor',
+      seed_table_ids: seedIds,
+    })
+    changeEventId = event.id
+  }
+
+  persist()
+  return {
+    script_id: script.id,
+    target_tables: result.targets,
+    source_tables: result.sources,
+    tables_created: [],
+    edges_created: syncInfo.edges_created,
+    warnings: result.warnings,
+    change_event_id: changeEventId,
+  }
+}
+
+export async function deleteScript(id: number): Promise<void> {
+  const state = getState()
+  const script = state.scripts.find((s) => s.id === id)
+  if (!script) fail(404, '脚本不存在')
+  state.edges = state.edges.filter((e) => e.script_id !== id)
+  state.scripts = state.scripts.filter((s) => s.id !== id)
+  persist()
+}
+
+// ---------------------------------------------------------------- 报表
+
+export async function listReports(): Promise<ReportListItem[]> {
+  const state = getState()
+  return [...state.reports].sort((a, b) => a.id - b.id).map((r) => reportOut(state, r))
+}
+
+function validateReportRefs(state: MockState, tableId: number, systemId: number): void {
+  if (!state.tables.some((t) => t.id === tableId)) fail(400, 'table_id 指向的表不存在')
+  if (!systemById(state, systemId)) fail(400, 'target_system_id 指向的系统不存在')
+}
+
+export async function createReport(payload: Omit<Report, 'id'>): Promise<Report> {
+  const state = getState()
+  validateReportRefs(state, payload.table_id, payload.target_system_id)
+  const report: Report = { id: nextId(state, 'report'), ...payload }
+  state.reports.push(report)
+  persist()
+  return reportOut(state, report)
+}
+
+export async function updateReport(id: number, payload: Partial<Omit<Report, 'id'>>): Promise<Report> {
+  const state = getState()
+  const report = state.reports.find((r) => r.id === id)
+  if (!report) fail(404, '报表不存在')
+  const tableId = payload.table_id ?? report.table_id
+  const systemId = payload.target_system_id ?? report.target_system_id
+  validateReportRefs(state, tableId, systemId)
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined) (report as unknown as Record<string, unknown>)[k] = v
+  }
+  persist()
+  return reportOut(state, report)
+}
+
+export async function deleteReport(id: number): Promise<void> {
+  const state = getState()
+  const report = state.reports.find((r) => r.id === id)
+  if (!report) fail(404, '报表不存在')
+  state.reports = state.reports.filter((r) => r.id !== id)
+  persist()
+}
+
+// ---------------------------------------------------------------- 血缘图
+
+const OVERVIEW_NODE_LIMIT = 500
+
+export async function getLineageOverview(): Promise<GraphResponse> {
+  const state = getState()
+  const tables = [...state.tables].sort((a, b) => a.id - b.id).slice(0, OVERVIEW_NODE_LIMIT)
+  const tableIds = new Set(tables.map((t) => t.id))
+  const reportIds = reportTableIds(state)
+  return {
+    nodes: tables.map((t) => nodeOut(state, t, reportIds)),
+    edges: state.edges
+      .filter((e) => tableIds.has(e.src_table_id) && tableIds.has(e.dst_table_id))
+      .map((e) => edgeOut(state, e)),
+  }
+}
+
+export async function getLineageGraph(params: {
+  table_id: number
+  direction?: 'upstream' | 'downstream' | 'both'
+  depth?: number
+}): Promise<GraphResponse> {
+  const state = getState()
+  const { table_id } = params
+  // 兼容后端的 up/down 别名(api.ts 类型只暴露 upstream/downstream/both)
+  const direction: string = params.direction ?? 'both'
+  const depth = params.depth ?? 3
+  const focus = state.tables.find((t) => t.id === table_id)
+  if (!focus) fail(404, '表不存在')
+
+  // 邻接表:up dst -> [src];down src -> [dst]
+  const upAdj = new Map<number, number[]>()
+  const downAdj = new Map<number, number[]>()
+  for (const e of state.edges) {
+    upAdj.set(e.dst_table_id, [...(upAdj.get(e.dst_table_id) ?? []), e.src_table_id])
+    downAdj.set(e.src_table_id, [...(downAdj.get(e.src_table_id) ?? []), e.dst_table_id])
+  }
+
+  const distance = new Map<number, number>([[table_id, 0]])
+  const bfs = (adj: Map<number, number[]>, sign: number) => {
+    const queue: [number, number][] = [[table_id, 0]]
+    while (queue.length > 0) {
+      const [cur, d] = queue.shift() as [number, number]
+      if (Math.abs(d) >= depth) continue
+      for (const nxt of adj.get(cur) ?? []) {
+        if (!distance.has(nxt)) {
+          distance.set(nxt, d + sign)
+          queue.push([nxt, d + sign])
+        }
+      }
+    }
+  }
+  if (direction === 'up' || direction === 'upstream' || direction === 'both') bfs(upAdj, -1)
+  if (direction === 'down' || direction === 'downstream' || direction === 'both') bfs(downAdj, 1)
+
+  const tableIds = new Set(distance.keys())
+  const reportIds = reportTableIds(state)
+  const nodes: GraphNode[] = state.tables
+    .filter((t) => tableIds.has(t.id))
+    .sort((a, b) => a.id - b.id)
+    .map((t) => ({ ...nodeOut(state, t, reportIds), focus: t.id === table_id, distance: distance.get(t.id) }))
+  const edges = state.edges
+    .filter((e) => tableIds.has(e.src_table_id) && tableIds.has(e.dst_table_id))
+    .map((e) => edgeOut(state, e))
+  return { nodes, edges }
+}
+
+// ---------------------------------------------------------------- 变更与审批
+
+export async function submitDdlChange(payload: {
+  table_id: number
+  new_ddl: string
+  submitted_by: string
+}): Promise<ChangeEvent> {
+  const state = getState()
+  const table = state.tables.find((t) => t.id === payload.table_id)
+  if (!table) fail(404, '表不存在')
+  const result = engineParse(payload.new_ddl)
+  if (Object.keys(result.columnsByTable).length === 0 && result.alters.length === 0) {
+    fail(400, '无法从 new_ddl 解析出字段定义或 ALTER 操作')
+  }
+  const diff = ddlDiff(state, table, result)
+  const event = createChangeEvent(state, {
+    change_type: 'ddl_change',
+    object_name: table.name,
+    old_text: renderDdl(state, table),
+    new_text: payload.new_ddl,
+    diff,
+    submitted_by: payload.submitted_by,
+    seed_table_ids: [table.id],
+  })
+  persist()
+  // 与后端一致:返回完整变更详情(前端按真实契约收窄)
+  return changeDetail(state, event) as unknown as ChangeEvent
+}
+
+export async function submitSqlChange(payload: {
+  script_id: number
+  new_sql: string
+  submitted_by: string
+}): Promise<ChangeEvent> {
+  const state = getState()
+  const script = state.scripts.find((s) => s.id === payload.script_id)
+  if (!script) fail(404, '脚本不存在')
+
+  const tableName = (id: number) => state.tables.find((t) => t.id === id)?.name ?? ''
+  const oldPairs = new Set(
+    state.edges
+      .filter((e) => e.script_id === script.id)
+      .map((e) => `${tableName(e.src_table_id)}|${tableName(e.dst_table_id)}`),
+  )
+  const result = engineParse(payload.new_sql, script.target_table ?? undefined)
+  const newPairs = new Set(
+    result.edges.flatMap((edge) => edge.sources.map((src) => `${src}|${edge.target}`)),
+  )
+  const added = [...newPairs].filter((p) => !oldPairs.has(p) && !p.startsWith('|') && !p.endsWith('|')).sort()
+  const removed = [...oldPairs].filter((p) => !newPairs.has(p) && !p.startsWith('|') && !p.endsWith('|')).sort()
+  const diff = {
+    edges_added: added.map((p) => {
+      const [source, target] = p.split('|')
+      return { source, target }
+    }),
+    edges_removed: removed.map((p) => {
+      const [source, target] = p.split('|')
+      return { source, target }
+    }),
+  } as ChangeDiff
+
+  // 影响分析覆盖新旧两侧目标表
+  const oldTargetNames = new Set([...oldPairs].map((p) => p.split('|')[1]).filter(Boolean))
+  const targetNames = new Set([...oldTargetNames, ...result.targets])
+  const seedIds = state.tables.filter((t) => targetNames.has(t.name)).map((t) => t.id)
+
+  const event = createChangeEvent(state, {
+    change_type: 'sql_change',
+    object_name: script.name,
+    old_text: script.sql_text,
+    new_text: payload.new_sql,
+    diff,
+    submitted_by: payload.submitted_by,
+    seed_table_ids: seedIds,
+  })
+  persist()
+  return changeDetail(state, event) as unknown as ChangeEvent
+}
+
+export async function listChanges(): Promise<ChangeEventSummary[]> {
+  const state = getState()
+  return [...state.changes]
+    .sort((a, b) => (a.created_at === b.created_at ? b.id - a.id : a.created_at < b.created_at ? 1 : -1))
+    .map((e) => eventSummary(state, e))
+}
+
+export async function getChange(id: number): Promise<ImpactDetail> {
+  const state = getState()
+  const event = state.changes.find((c) => c.id === id)
+  if (!event) fail(404, '变更事件不存在')
+  return changeDetail(state, event)
+}
+
+export async function listApprovals(params?: {
+  status?: ApprovalStatus
+  approver?: string
+}): Promise<ApprovalInboxItem[]> {
+  const state = getState()
+  let tasks = [...state.approvals]
+  if (params?.status) tasks = tasks.filter((t) => t.status === params.status)
+  if (params?.approver) tasks = tasks.filter((t) => t.approver_name === params.approver)
+  return tasks.sort((a, b) => a.id - b.id).map((t) => {
+    const event = state.changes.find((c) => c.id === t.change_event_id)
+    const summary: ChangeSummarySuperset = event
+      ? eventSummary(state, event)
+      : {
+          // 兜底:任务的事件被删除时(正常不会发生)给最小可用摘要
+          id: t.change_event_id,
+          change_type: 'ddl_change',
+          object_name: '',
+          old_text: '',
+          new_text: '',
+          diff_summary: '{}',
+          status: 'pending',
+          submitted_by: '',
+          created_at: t.decided_at ?? '',
+          resolved_at: null,
+          impact_count: 0,
+          pending_tasks: 0,
+          approved_tasks: 0,
+          impacted_report_count: 0,
+          impacted_system_count: 0,
+          impacted_table_count: 0,
+          pending_task_count: 0,
+          approved_task_count: 0,
+          rejected_task_count: 0,
+        }
+    return { ...t, change_event: summary }
+  })
+}
+
+export async function decideApproval(
+  id: number,
+  payload: { decision: ApprovalDecision; comment?: string },
+): Promise<ChangeEvent> {
+  const state = getState()
+  const task = state.approvals.find((a) => a.id === id)
+  if (!task) fail(404, '审批任务不存在')
+  if (payload.decision !== 'approved' && payload.decision !== 'rejected') {
+    fail(400, 'decision 必须是 approved 或 rejected')
+  }
+  if (task.status !== 'pending') fail(409, '该任务已决策')
+
+  task.status = payload.decision
+  task.comment = payload.comment ?? null
+  task.decided_at = nowIso()
+
+  const event = state.changes.find((c) => c.id === task.change_event_id)
+  if (event && event.status === 'pending') {
+    if (payload.decision === 'rejected') {
+      event.status = 'rejected'
+      event.resolved_at = nowIso()
+    } else {
+      const siblings = state.approvals.filter((a) => a.change_event_id === event.id)
+      if (siblings.every((t) => t.status === 'approved')) {
+        event.status = 'approved'
+        event.resolved_at = nowIso()
+        applyChange(state, event)
+      }
+    }
+  }
+  persist()
+  if (!event) fail(404, '变更事件不存在')
+  return event
+}
+
+// ---------------------------------------------------------------- 仪表盘
+
+function downstreamCount(state: MockState, start: number): { count: number; reached: Set<number> } {
+  const adj = new Map<number, number[]>()
+  for (const e of state.edges) {
+    adj.set(e.src_table_id, [...(adj.get(e.src_table_id) ?? []), e.dst_table_id])
+  }
+  const visited = new Set<number>([start])
+  const queue = [start]
+  let n = 0
+  while (queue.length > 0) {
+    const cur = queue.shift() as number
+    for (const nxt of adj.get(cur) ?? []) {
+      if (!visited.has(nxt)) {
+        visited.add(nxt)
+        n++
+        queue.push(nxt)
+      }
+    }
+  }
+  visited.delete(start)
+  return { count: n, reached: visited }
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const state = getState()
+  const pendingChanges = state.changes.filter((c) => c.status === 'pending').length
+  const pendingApprovals = state.approvals.filter((a) => a.status === 'pending').length
+
+  const layerCounts = new Map<string, number>()
+  for (const t of state.tables) layerCounts.set(t.layer, (layerCounts.get(t.layer) ?? 0) + 1)
+  const layerDistribution = [...layerCounts.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([layer, count]) => ({ layer: layer as TableLayer, count }))
+
+  const recentChanges = [...state.changes]
+    .sort((a, b) => (a.created_at === b.created_at ? b.id - a.id : a.created_at < b.created_at ? 1 : -1))
+    .slice(0, 5)
+    .map((e) => eventSummary(state, e))
+
+  // 热门表:下游可达表数量 Top5(附带下游报表计数)
+  let hot: HotTable[] = state.tables.map((t) => {
+    const { count, reached } = downstreamCount(state, t.id)
+    const downstreamReports = state.reports.filter((r) => reached.has(r.table_id)).length
+    return { name: t.name, downstream: count, layer: t.layer, owner: t.owner || undefined, downstream_reports: downstreamReports }
+  })
+  hot = hot.sort((a, b) => (b.downstream !== a.downstream ? b.downstream - a.downstream : a.name.localeCompare(b.name))).slice(0, 5)
+  const nonZero = hot.filter((h) => h.downstream > 0)
+  const hotTables = nonZero.length > 0 ? nonZero : hot
+
+  return {
+    table_count: state.tables.length,
+    report_count: state.reports.length,
+    system_count: state.systems.length,
+    edge_count: state.edges.length,
+    pending_changes: pendingChanges,
+    pending_approvals: pendingApprovals,
+    layer_distribution: layerDistribution,
+    recent_changes: recentChanges,
+    hot_tables: hotTables,
+  }
+}

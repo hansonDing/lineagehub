@@ -13,7 +13,16 @@ import {
   Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { listApprovals, listReports, listScripts, listSystems, listTables } from '@/lib/api'
+import {
+  getDemoModeListeners,
+  isDemoMode,
+  listApprovals,
+  listReports,
+  listScripts,
+  listSystems,
+  listTables,
+  type DemoModeListener,
+} from '@/lib/api'
 import { Avatar } from '@/components/common/Avatar'
 import { LayerBadge } from '@/components/common/LayerBadge'
 import { Toaster } from '@/components/common/Toast'
@@ -355,6 +364,16 @@ export default function Layout() {
   const location = useLocation()
   const { user } = useUser()
   const [pendingCount, setPendingCount] = useState(0)
+  const [demoMode, setDemoMode] = useState(isDemoMode())
+
+  // 订阅演示模式:API 降级到内置模拟数据时即时显示琥珀色徽标
+  useEffect(() => {
+    const listener: DemoModeListener = (active) => setDemoMode(active)
+    getDemoModeListeners().add(listener)
+    return () => {
+      getDemoModeListeners().delete(listener)
+    }
+  }, [])
 
   const refreshPending = useCallback(async () => {
     try {
@@ -396,6 +415,17 @@ export default function Layout() {
             <span className="size-1.5 rounded-full bg-success" />
             生产环境
           </span>
+          {/* 演示模式徽标:后端不可达降级到内置模拟 API 时显示 */}
+          {demoMode && (
+            <span
+              title="API 不可达,当前为浏览器内置演示数据"
+              className="flex h-6 cursor-default items-center gap-1.5 rounded px-2 text-[11px] font-medium"
+              style={{ backgroundColor: 'rgba(217, 119, 6, 0.1)', color: '#D97706' }}
+            >
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: '#D97706' }} />
+              演示模式 · 后端未连接
+            </span>
+          )}
           <UserSwitcher pendingCount={pendingCount} />
         </header>
         {/* 内容区:血缘图谱页 0 padding 撑满画布 */}
