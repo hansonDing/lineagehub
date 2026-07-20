@@ -1,5 +1,7 @@
 """FastAPI 入口:CORS、/api 路由挂载、静态托管 dist(SPA fallback)。"""
 import os
+import sys
+import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -8,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.database import SessionLocal, init_db
+from backend.app.database import DB_PATH, SessionLocal, init_db
 from backend.app.routers import changes, dashboard, lineage, reports, scripts, systems, tables
 from backend.app.seed import seed_if_empty
 
@@ -18,15 +20,24 @@ DIST_DIR = Path(
 ).resolve()
 
 
+# 启动错误记录:即使初始化失败也让进程存活,/api/health 会暴露原因
+STARTUP_ERROR: str | None = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动:建表;DB 为空时自动灌入演示数据。"""
-    init_db()
-    db = SessionLocal()
+    """启动:建表;DB 为空时自动灌入演示数据。失败不致命,写入 STARTUP_ERROR。"""
+    global STARTUP_ERROR
     try:
-        seed_if_empty(db)
-    finally:
-        db.close()
+        init_db()
+        db = SessionLocal()
+        try:
+            seed_if_empty(db)
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 启动期任何异常都不能让进程退出
+        STARTUP_ERROR = traceback.format_exc()
+        print(STARTUP_ERROR, file=sys.stderr)
     yield
 
 
@@ -54,8 +65,23 @@ app.include_router(dashboard.router, prefix="/api")
 
 @app.get("/api/health")
 def health():
-    """健康检查。"""
-    return {"status": "ok"}
+    """健康检查 + 部署自诊断(DB 路径/可写性/表计数/启动错误)。"""
+    info: dict = {"status": "ok" if STARTUP_ERROR is None else "degraded", "db_path": str(DB_PATH)}
+    if STARTUP_ERROR is not None:
+        info["startup_error"] = STARTUP_ERROR[-2000:]
+        return info
+    try:
+        from backend.app.models import DataTable
+
+        db = SessionLocal()
+        try:
+            info["table_count"] = db.query(DataTable).count()
+        finally:
+            db.close()
+    except Exception as exc:  # noqa: BLE001
+        info["status"] = "error"
+        info["db_error"] = repr(exc)
+    return info
 
 
 # ---------------------------------------------------------------- 静态托管
