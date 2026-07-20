@@ -135,7 +135,7 @@ export interface BuiltGraph {
   aggregated: boolean
 }
 
-function edgeStyleProps(visual: EdgeVisual): {
+export function edgeStyleProps(visual: EdgeVisual): {
   style: Edge['style']
   className?: string
   markerEnd: Edge['markerEnd']
@@ -317,6 +317,53 @@ export function buildFlowGraph(opts: BuildOptions): BuiltGraph {
   })
 
   return { nodes: flowNodes, edges: flowEdges, visibleTableCount: nodes.length, visibleEdgeCount: edges.length, aggregated: false }
+}
+
+// ------------------------------------------------- hover 高亮(增量更新用)
+
+export interface HoverVisuals {
+  /** tableId → 节点视觉状态(仅覆盖当前可见的实体表节点) */
+  nodeVisual: Map<number, NodeVisual>
+  /** flow 边 id(e-<graphEdgeId>)→ 边视觉状态;聚合模式下为空(与 buildFlowGraph 一致) */
+  edgeVisual: Map<string, EdgeVisual>
+}
+
+/**
+ * 由 hoverId 计算链路高亮映射,供画布就地增量更新(setNodes/setEdges map)。
+ * 与 buildFlowGraph 的分类逻辑保持一致,但不重建布局与节点/边数组。
+ */
+export function computeHoverVisuals(opts: {
+  graph: GraphResponse
+  hiddenLayers: Set<TableLayer>
+  aggregate: boolean
+  expandedLayers: Set<TableLayer>
+  hoverId: number | null
+}): HoverVisuals | null {
+  const { graph, hiddenLayers, aggregate, expandedLayers, hoverId } = opts
+  if (hoverId == null) return null
+
+  const filtering = hiddenLayers.size > 0
+  const nodes = filtering ? graph.nodes.filter((n) => !hiddenLayers.has(n.layer)) : graph.nodes
+  const ids = new Set(nodes.map((n) => n.id))
+  if (!ids.has(hoverId)) return null
+  const edges = filtering
+    ? graph.edges.filter((e) => ids.has(e.source) && ids.has(e.target))
+    : graph.edges
+  const chains = computeChains(edges, hoverId)
+
+  const nodeVisual = new Map<number, NodeVisual>()
+  if (aggregate) {
+    // 聚合模式:仅展开层的实体表参与高亮;聚合边保持 normal(与 buildFlowGraph 聚合分支一致)
+    for (const n of nodes) {
+      if (expandedLayers.has(n.layer)) nodeVisual.set(n.id, classifyNode(n.id, hoverId, chains))
+    }
+    return { nodeVisual, edgeVisual: new Map() }
+  }
+
+  for (const n of nodes) nodeVisual.set(n.id, classifyNode(n.id, hoverId, chains))
+  const edgeVisual = new Map<string, EdgeVisual>()
+  for (const e of edges) edgeVisual.set(`e-${e.id}`, classifyEdge(e, hoverId, chains))
+  return { nodeVisual, edgeVisual }
 }
 
 /** 合并上游 / 下游两次子图请求的结果(按 id 去重) */

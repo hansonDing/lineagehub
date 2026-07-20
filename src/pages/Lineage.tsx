@@ -12,13 +12,14 @@ import { toast } from '@/components/common/Toast'
 import {
   AGGREGATE_THRESHOLD,
   CANVAS_BG,
+  DIM_OPACITY,
   HOT_TABLE_NAME,
   NODE_HEIGHT,
   NODE_WIDTH,
 } from '@/components/lineage/constants'
 import type { TableRef } from '@/components/lineage/constants'
-import { buildFlowGraph, mergeGraphs } from '@/components/lineage/graph-utils'
-import type { FlowNode } from '@/components/lineage/graph-utils'
+import { buildFlowGraph, computeHoverVisuals, edgeStyleProps, mergeGraphs } from '@/components/lineage/graph-utils'
+import type { EdgeVisual, FlowNode, NodeVisual, TableFlowNode } from '@/components/lineage/graph-utils'
 import { TableNode } from '@/components/lineage/TableNode'
 import { GroupNode } from '@/components/lineage/GroupNode'
 import { LineageStyles } from '@/components/lineage/LineageStyles'
@@ -212,6 +213,8 @@ export default function Lineage() {
   const aggregate = mode === 'overview' && (overview?.nodes.length ?? 0) > AGGREGATE_THRESHOLD
   const currentGraph = mode === 'overview' ? overview : focusGraph
 
+  // 布局与基础图:不依赖 hoverId —— hover 高亮由下方增量 effect 处理,
+  // 避免每次 hover 都重跑 dagre 并重建全部节点/边对象(DOM churn → 闪烁、流动动画反复重启)
   const built = useMemo(() => {
     if (!currentGraph) return null
     return buildFlowGraph({
@@ -220,16 +223,58 @@ export default function Lineage() {
       hiddenLayers: mode === 'overview' ? hiddenLayers : EMPTY_LAYERS,
       aggregate,
       expandedLayers,
-      hoverId,
+      hoverId: null,
       selectedId,
       focusId: mode === 'focus' ? (focus?.id ?? null) : null,
     })
-  }, [currentGraph, direction, mode, hiddenLayers, aggregate, expandedLayers, hoverId, selectedId, focus?.id])
+  }, [currentGraph, direction, mode, hiddenLayers, aggregate, expandedLayers, selectedId, focus?.id])
 
   useEffect(() => {
     setNodes(built?.nodes ?? [])
     setEdges(built?.edges ?? [])
   }, [built, setNodes, setEdges])
+
+  // ---------- hover 链路高亮:就地增量更新 ----------
+  // 只替换视觉状态真正变化的节点/边对象,其余保持对象身份不变,
+  // React Flow 因此只做最小化更新,流动虚线动画不会被重启。
+  useEffect(() => {
+    if (!currentGraph) return
+    const visuals = computeHoverVisuals({
+      graph: currentGraph,
+      hiddenLayers: mode === 'overview' ? hiddenLayers : EMPTY_LAYERS,
+      aggregate,
+      expandedLayers,
+      hoverId,
+    })
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.type !== 'tableNode') return n
+        const prev = n as TableFlowNode
+        const visual: NodeVisual = visuals?.nodeVisual.get(prev.data.tableId) ?? 'normal'
+        if (prev.data.visual === visual) return n // style 由 visual 派生,visual 不变则无需更新
+        return {
+          ...prev,
+          style: visual === 'dimmed' ? { opacity: DIM_OPACITY } : undefined,
+          data: { ...prev.data, visual },
+        }
+      }),
+    )
+    setEdges((eds) =>
+      eds.map((e) => {
+        const visual: EdgeVisual = visuals?.edgeVisual.get(e.id) ?? 'normal'
+        const props = edgeStyleProps(visual)
+        const s = e.style ?? {}
+        const p = props.style ?? {}
+        const unchanged =
+          (e.className ?? undefined) === props.className &&
+          s.stroke === p.stroke &&
+          s.strokeWidth === p.strokeWidth &&
+          s.opacity === p.opacity
+        if (unchanged) return e
+        return { ...e, ...props }
+      }),
+    )
+  }, [hoverId, currentGraph, mode, hiddenLayers, aggregate, expandedLayers, setNodes, setEdges])
 
   // ---------- 待执行的视口动作 ----------
   useEffect(() => {
