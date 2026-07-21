@@ -33,6 +33,7 @@ from backend.app.service import (
     event_impact,
     render_ddl,
 )
+from backend.app.services import notify as _notify
 
 router = APIRouter(prefix="/changes", tags=["changes"])
 approvals_router = APIRouter(prefix="/approvals", tags=["approvals"])
@@ -147,6 +148,7 @@ def submit_ddl_change(payload: DdlChangeRequest, db: Session = Depends(get_db)):
     )
     db.commit()
     db.refresh(event)
+    _notify.notify_approvers(db, event)  # 邮件通知审批人(失败静默)
     return _detail(db, event)
 
 
@@ -192,6 +194,7 @@ def submit_sql_change(payload: SqlChangeRequest, db: Session = Depends(get_db)):
     )
     db.commit()
     db.refresh(event)
+    _notify.notify_approvers(db, event)  # 邮件通知审批人(失败静默)
     return _detail(db, event)
 
 
@@ -271,6 +274,7 @@ def submit_create_table_change(payload: CreateTableChangeRequest, db: Session = 
     _ensure_approvable(db, event, payload.submitted_by, name)
     db.commit()
     db.refresh(event)
+    _notify.notify_approvers(db, event)  # 邮件通知审批人(失败静默)
     return _detail(db, event)
 
 
@@ -328,6 +332,7 @@ def submit_drop_table_change(payload: DropTableChangeRequest, db: Session = Depe
     _ensure_approvable(db, event, payload.submitted_by, table.name)
     db.commit()
     db.refresh(event)
+    _notify.notify_approvers(db, event)  # 邮件通知审批人(失败静默)
     return _detail(db, event)
 
 
@@ -409,6 +414,7 @@ def decide(task_id: int, payload: DecisionRequest, db: Session = Depends(get_db)
     task.decided_at = utcnow()
 
     event = task.change_event
+    prev_status = event.status
     if event.status == "pending":
         if payload.decision == "rejected":
             event.status = "rejected"
@@ -425,4 +431,7 @@ def decide(task_id: int, payload: DecisionRequest, db: Session = Depends(get_db)
                 apply_change(db, event)  # 应用变更(DDL 替换字段 / SQL 更新脚本与边)
     db.commit()
     db.refresh(event)
+    # 事件状态发生流转(pending -> approved/rejected)时通知提交人(失败静默)
+    if prev_status == "pending" and event.status in ("approved", "rejected"):
+        _notify.notify_submitter(db, event, event.status)
     return ChangeEventOut.model_validate(event)
