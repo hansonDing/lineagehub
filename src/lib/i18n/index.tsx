@@ -8,6 +8,7 @@ import { zh as lineageZh, en as lineageEn } from './pages/lineage'
 import { zh as sqlZh, en as sqlEn } from './pages/sql'
 import { zh as metadataZh, en as metadataEn } from './pages/metadata'
 import { zh as changesZh, en as changesEn } from './pages/changes'
+import { zh as settingsZh, en as settingsEn } from './pages/settings'
 
 /**
  * i18n 核心:LanguageProvider + useT()
@@ -38,6 +39,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     ...sqlZh,
     ...metadataZh,
     ...changesZh,
+    ...settingsZh,
   },
   en: {
     ...commonEn,
@@ -48,6 +50,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     ...sqlEn,
     ...metadataEn,
     ...changesEn,
+    ...settingsEn,
   },
 }
 
