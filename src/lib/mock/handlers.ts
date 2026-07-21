@@ -20,6 +20,8 @@ import type {
   GraphResponse,
   HotTable,
   ImpactDetail,
+  IntegrationSettings,
+  IntegrationTestResult,
   LineageEdge,
   LoginResponse,
   ParseResult,
@@ -921,6 +923,80 @@ export async function decideApproval(
   persist()
   if (!event) fail(404, '变更事件不存在')
   return event
+}
+
+// ---------------------------------------------------------------- 集成设置(对齐 backend /settings/integrations)
+
+/** 输出时剥离密钥明文,只回 *_set 标记(与后端契约一致) */
+function integrationSettingsOut(state: MockState): IntegrationSettings {
+  const s = state.integrationSettings
+  return {
+    ado: { ...s.ado, pat: undefined, webhook_secret: undefined },
+    smtp: { ...s.smtp, password: undefined },
+    emails: s.emails.map((e) => ({ ...e })),
+  }
+}
+
+export async function getIntegrationSettings(): Promise<IntegrationSettings> {
+  return integrationSettingsOut(getState())
+}
+
+/** 更新集成设置:pat/password/webhook_secret 传空串(或未传)保持原值 */
+export async function updateIntegrationSettings(payload: IntegrationSettings): Promise<IntegrationSettings> {
+  const state = getState()
+  const cur = state.integrationSettings
+
+  const ado = { ...cur.ado }
+  ado.enabled = Boolean(payload.ado?.enabled)
+  ado.org_url = (payload.ado?.org_url ?? '').trim()
+  ado.project = (payload.ado?.project ?? '').trim()
+  ado.repo = (payload.ado?.repo ?? '').trim()
+  if (payload.ado?.pat) {
+    ado.pat = payload.ado.pat
+    ado.pat_set = true
+  }
+  if (payload.ado?.webhook_secret) {
+    ado.webhook_secret = payload.ado.webhook_secret
+    ado.webhook_secret_set = true
+  }
+
+  const smtp = { ...cur.smtp }
+  smtp.enabled = Boolean(payload.smtp?.enabled)
+  smtp.host = (payload.smtp?.host ?? '').trim()
+  const port = Number(payload.smtp?.port)
+  smtp.port = Number.isFinite(port) && port > 0 ? Math.floor(port) : 465
+  smtp.username = (payload.smtp?.username ?? '').trim()
+  if (payload.smtp?.password) {
+    smtp.password = payload.smtp.password
+    smtp.password_set = true
+  }
+  smtp.from_addr = (payload.smtp?.from_addr ?? '').trim()
+  smtp.use_tls = Boolean(payload.smtp?.use_tls)
+
+  const known = new Set(cur.emails.map((e) => e.name))
+  const emails = Array.isArray(payload.emails)
+    ? payload.emails
+        .filter((e) => e && known.has(e.name))
+        .map((e) => ({ name: e.name, email: (e.email ?? '').trim() }))
+    : cur.emails
+
+  state.integrationSettings = { ado, smtp, emails }
+  persist()
+  return integrationSettingsOut(state)
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export async function testSmtp(to: string): Promise<IntegrationTestResult> {
+  const target = (to ?? '').trim()
+  if (!EMAIL_RE.test(target)) fail(400, '收件邮箱格式不正确')
+  return { ok: true, detail: '演示模式:已模拟发送测试邮件' }
+}
+
+export async function testAdo(): Promise<IntegrationTestResult> {
+  const ado = getState().integrationSettings.ado
+  if (!ado.org_url.trim()) fail(400, '请先填写并保存 ADO 组织 URL')
+  return { ok: true, detail: '演示模式:已模拟连接 ADO 仓库' }
 }
 
 // ---------------------------------------------------------------- 仪表盘
