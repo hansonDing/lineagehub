@@ -18,8 +18,10 @@ from backend.app.routers import (
     lineage,
     reports,
     scripts,
+    settings,
     systems,
     tables,
+    webhooks,
 )
 from backend.app.seed import seed_if_empty
 
@@ -72,6 +74,8 @@ app.include_router(lineage.router, prefix="/api")
 app.include_router(changes.router, prefix="/api")
 app.include_router(changes.approvals_router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
+app.include_router(webhooks.router, prefix="/api")
 
 
 @app.get("/api/health")

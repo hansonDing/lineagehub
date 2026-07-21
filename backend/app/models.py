@@ -145,6 +145,15 @@ class ChangeEvent(Base):
     )
 
 
+class IntegrationSetting(Base):
+    """集成设置键值表(key: 'ado' / 'smtp' / 'emails',value 为 JSON 文本)。"""
+
+    __tablename__ = "integration_settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(Text, default="{}")
+
+
 class ApprovalTask(Base):
     """审批任务(每个受影响负责人一条)。"""
 
