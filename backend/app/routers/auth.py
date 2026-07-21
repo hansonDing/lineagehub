@@ -24,14 +24,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 TOKEN_TTL_SECONDS = 24 * 3600
 
 # 预设用户:与种子数据(系统/表/报表负责人)保持一致
+def _default_email(name: str) -> str:
+    """预设用户默认邮箱:{姓名小写}@lineagehub.example.com。"""
+    return f"{name.lower()}@lineagehub.example.com"
+
+
 PRESET_USERS: list[dict] = [
-    {"name": "Leo", "role": "Data Engineer"},
-    {"name": "Doris", "role": "Data Engineer"},
-    {"name": "Fiona", "role": "Data Analyst"},
-    {"name": "Hanson", "role": "System Owner"},
-    {"name": "Jacky", "role": "System Owner"},
-    {"name": "Jerry", "role": "BI Engineer"},
-    {"name": "Maggie", "role": "Finance Analyst"},
+    {"name": "Leo", "role": "Data Engineer", "email": _default_email("Leo")},
+    {"name": "Doris", "role": "Data Engineer", "email": _default_email("Doris")},
+    {"name": "Fiona", "role": "Data Analyst", "email": _default_email("Fiona")},
+    {"name": "Hanson", "role": "System Owner", "email": _default_email("Hanson")},
+    {"name": "Jacky", "role": "System Owner", "email": _default_email("Jacky")},
+    {"name": "Jerry", "role": "BI Engineer", "email": _default_email("Jerry")},
+    {"name": "Maggie", "role": "Finance Analyst", "email": _default_email("Maggie")},
 ]
 
 # 统一错误文案:用户不存在与密码错误不区分(避免枚举用户)
@@ -106,6 +111,18 @@ def _verify_token(token: str) -> dict:
     return user
 
 
+def verify_bearer_token(authorization: str | None) -> dict:
+    """从 Authorization 头解析并验证 Bearer token(供其他路由复用)。
+
+    缺失/非 Bearer 抛 401「缺少 Authorization 头」;无效/过期抛 401。
+    成功返回 PRESET_USERS 中的用户 dict(name/role/email)。
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "缺少 Authorization 头")
+    token = authorization[len("Bearer "):].strip()
+    return _verify_token(token)
+
+
 # ---------------------------------------------------------------- 端点
 @router.get("/users", response_model=list[AuthUser])
 def list_users():
@@ -125,8 +142,5 @@ def login(payload: LoginRequest):
 @router.get("/me", response_model=AuthUser)
 def me(authorization: str | None = Header(default=None)):
     """按 Bearer token 返回当前用户;缺失/无效/过期均 401。"""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "缺少 Authorization 头")
-    token = authorization[len("Bearer "):].strip()
-    user = _verify_token(token)
+    user = verify_bearer_token(authorization)
     return AuthUser(**user)
