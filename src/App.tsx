@@ -8,6 +8,7 @@ import Login from '@/pages/Login'
 import Sql from '@/pages/Sql'
 import Metadata from '@/pages/Metadata'
 import Changes from '@/pages/Changes'
+import Settings from '@/pages/Settings'
 
 /** 路由守卫:无 token 访问业务页 → /login(并记住来源路径,登录后回跳) */
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="sql" element={<Sql />} />
           <Route path="metadata" element={<Metadata />} />
           <Route path="changes" element={<Changes />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
