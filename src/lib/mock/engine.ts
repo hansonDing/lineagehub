@@ -13,6 +13,7 @@ import type {
   ChangeDiff,
   ChangeEvent,
   DataTable,
+  IntegrationSettings,
   LineageEdge,
   Report,
   SqlScript,
@@ -43,6 +44,8 @@ export interface MockState {
   reports: Report[]
   changes: ChangeEvent[]
   approvals: ApprovalTask[]
+  /** 集成设置(ADO/SMTP/用户邮箱;含演示用密钥明文,仅浏览器内) */
+  integrationSettings: IntegrationSettings
   seq: MockSeq
 }
 
