@@ -10,6 +10,7 @@ import {
   LogOut,
   Network,
   Search,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -42,6 +43,8 @@ const NAV_ITEMS = [
   { to: '/sql', i18nKey: 'layout.nav.sql', icon: FileCode2 },
   { to: '/metadata', i18nKey: 'layout.nav.metadata', icon: Database },
   { to: '/changes', i18nKey: 'layout.nav.changes', icon: GitPullRequest },
+  // 集成设置:仅 System Owner 可见
+  { to: '/settings', i18nKey: 'layout.nav.settings', icon: Settings, ownerOnly: true },
 ] as const
 
 /** 面包屑页名:路由 → i18n key */
@@ -51,6 +54,7 @@ const ROUTE_TITLE_KEYS: Record<string, string> = {
   '/sql': 'layout.nav.sql',
   '/metadata': 'layout.nav.metadata',
   '/changes': 'layout.nav.changes',
+  '/settings': 'layout.nav.settings',
 }
 
 // ---------- 侧栏 ----------
@@ -74,7 +78,7 @@ function Sidebar({ pendingCount, user, role }: { pendingCount: number; user: str
 
       {/* 主导航 */}
       <nav className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-3">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.filter((item) => !('ownerOnly' in item && item.ownerOnly) || role === 'System Owner').map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
