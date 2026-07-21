@@ -13,8 +13,10 @@ import {
   FileCode2,
   FileDiff,
   Info,
+  PlusCircle,
   Send,
   Table2,
+  Trash2,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { SqlScript, TableListItem } from '@/lib/api'
@@ -22,7 +24,9 @@ import {
   getScript,
   listScripts,
   listTables,
+  submitCreateTableChange,
   submitDdlChange,
+  submitDropTableChange,
   submitSqlChange,
 } from '@/lib/api'
 import { formatChangeId } from '@/lib/format'
@@ -107,6 +111,16 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
   const [sqlLoading, setSqlLoading] = useState(false)
   const [sqlSubmitting, setSqlSubmitting] = useState(false)
   const [sqlError, setSqlError] = useState('')
+
+  // 卡 C:新建表(CREATE / CTAS)
+  const [createDdl, setCreateDdl] = useState('')
+  const [createSubmitting, setCreateSubmitting] = useState(false)
+  const [createError, setCreateError] = useState('')
+
+  // 卡 D:删除表(DROP)
+  const [dropTableId, setDropTableId] = useState('')
+  const [dropSubmitting, setDropSubmitting] = useState(false)
+  const [dropError, setDropError] = useState('')
 
   // 第②步:提交后的影响分析结果
   const [result, setResult] = useState<ChangeDetailReal | null>(null)
@@ -210,6 +224,40 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
       setSqlError(e instanceof Error ? e.message : t('changes.create.sql.submitFailed'))
     } finally {
       setSqlSubmitting(false)
+    }
+  }
+
+  const submitCreate = async () => {
+    if (!createDdl.trim() || createSubmitting) return
+    setCreateSubmitting(true)
+    setCreateError('')
+    try {
+      const detail = (await submitCreateTableChange({
+        new_ddl: createDdl,
+        submitted_by: user,
+      })) as unknown as ChangeDetailReal
+      handleResult(detail)
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : t('changes.create.create.submitFailed'))
+    } finally {
+      setCreateSubmitting(false)
+    }
+  }
+
+  const submitDrop = async () => {
+    if (!dropTableId || dropSubmitting) return
+    setDropSubmitting(true)
+    setDropError('')
+    try {
+      const detail = (await submitDropTableChange({
+        table_id: Number(dropTableId),
+        submitted_by: user,
+      })) as unknown as ChangeDetailReal
+      handleResult(detail)
+    } catch (e) {
+      setDropError(e instanceof Error ? e.message : t('changes.create.drop.submitFailed'))
+    } finally {
+      setDropSubmitting(false)
     }
   }
 
@@ -332,6 +380,77 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
             </p>
           )}
         </CardShell>
+
+        <CardShell
+          index={2}
+          icon={PlusCircle}
+          title={t('common.changeType.create_table')}
+          hint={t('changes.create.create.hint')}
+          footer={
+            <Button
+              variant="secondary"
+              loading={createSubmitting}
+              disabled={!createDdl.trim()}
+              onClick={() => void submitCreate()}
+            >
+              {createSubmitting ? t('changes.create.parsing') : t('changes.create.submit')}
+            </Button>
+          }
+        >
+          <div>
+            <FieldLabel required>{t('changes.create.create.newDdl')}</FieldLabel>
+            <CodeEditor
+              value={createDdl}
+              onChange={setCreateDdl}
+              minHeight={220}
+              placeholder={t('changes.create.create.editorPlaceholder')}
+            />
+          </div>
+          {createError && (
+            <p className="flex items-center gap-1.5 text-xs text-danger">
+              <AlertCircle className="size-3.5" />
+              {createError}
+            </p>
+          )}
+        </CardShell>
+
+        <CardShell
+          index={3}
+          icon={Trash2}
+          title={t('common.changeType.drop_table')}
+          hint={t('changes.create.drop.hint')}
+          footer={
+            <Button
+              variant="secondary"
+              loading={dropSubmitting}
+              disabled={!dropTableId}
+              onClick={() => void submitDrop()}
+            >
+              {dropSubmitting ? t('changes.create.parsing') : t('changes.create.submit')}
+            </Button>
+          }
+        >
+          <div>
+            <FieldLabel required>{t('changes.create.drop.selectTable')}</FieldLabel>
+            <SearchSelect
+              value={dropTableId}
+              onChange={setDropTableId}
+              options={tableOptions}
+              placeholder={t('changes.create.drop.tablePlaceholder')}
+              searchPlaceholder={t('changes.create.ddl.tableSearch')}
+            />
+          </div>
+          <p className="flex items-start gap-1.5 rounded-md bg-danger-light px-3 py-2 text-xs text-danger">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+            {t('changes.create.drop.warning')}
+          </p>
+          {dropError && (
+            <p className="flex items-center gap-1.5 text-xs text-danger">
+              <AlertCircle className="size-3.5" />
+              {dropError}
+            </p>
+          )}
+        </CardShell>
       </div>
 
       {/* 第②步:影响分析(提交后展开) */}
@@ -376,6 +495,8 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
                         setSql('')
                         setTableId('')
                         setScriptId('')
+                        setCreateDdl('')
+                        setDropTableId('')
                       }}
                     >
                       {t('changes.create.result.continue')}

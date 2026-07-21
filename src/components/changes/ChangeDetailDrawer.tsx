@@ -128,7 +128,11 @@ export function ChangeDetailDrawer({
           effect: t(
             event.change_type === 'ddl_change'
               ? 'changes.drawer.footer.effectDdl'
-              : 'changes.drawer.footer.effectSql',
+              : event.change_type === 'create_table'
+                ? 'changes.drawer.footer.effectCreate'
+                : event.change_type === 'drop_table'
+                  ? 'changes.drawer.footer.effectDrop'
+                  : 'changes.drawer.footer.effectSql',
           ),
         })}
       </div>
