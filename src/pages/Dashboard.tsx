@@ -116,14 +116,19 @@ function summarizeChange(item: ApprovalInboxItem, t: (key: string, vars?: I18nVa
   const name = event?.object_name ?? item.target_name
   try {
     const diff = JSON.parse(event?.diff_summary ?? '{}') as Record<string, unknown[]>
-    if (event?.change_type === 'ddl_change') {
+    if (event?.change_type && event.change_type !== 'sql_change') {
+      // ddl_change / create_table / drop_table:字段 + 血缘边兼有
       const added = Array.isArray(diff.added) ? diff.added.length : 0
       const removed = Array.isArray(diff.removed) ? diff.removed.length : 0
       const changed = Array.isArray(diff.type_changed) ? diff.type_changed.length : 0
+      const edgesAdded = Array.isArray(diff.edges_added) ? diff.edges_added.length : 0
+      const edgesRemoved = Array.isArray(diff.edges_removed) ? diff.edges_removed.length : 0
       const parts: string[] = []
       if (added) parts.push(t('dashboard.change.fieldsAdded', { count: added }))
       if (removed) parts.push(t('dashboard.change.fieldsRemoved', { count: removed }))
       if (changed) parts.push(t('dashboard.change.fieldsTypeChanged', { count: changed }))
+      if (edgesAdded) parts.push(t('dashboard.change.edgesAdded', { count: edgesAdded }))
+      if (edgesRemoved) parts.push(t('dashboard.change.edgesRemoved', { count: edgesRemoved }))
       if (parts.length) return `${name} ${parts.join(t('dashboard.change.join'))}`
     } else {
       const added = Array.isArray(diff.edges_added) ? diff.edges_added.length : 0
