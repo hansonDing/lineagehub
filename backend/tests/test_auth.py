@@ -40,7 +40,9 @@ def test_users_list(client):
         "Maggie": "Finance Analyst",
     }
     # 不泄露密码字段
-    assert all(set(u.keys()) == {"name", "role"} for u in users)
+    assert all(set(u.keys()) == {"name", "role", "email"} for u in users)
+    # 默认邮箱:{姓名小写}@lineagehub.example.com
+    assert {u["name"]: u["email"] for u in users}["Leo"] == "leo@lineagehub.example.com"
 
 
 # ---------------------------------------------------------------- 登录
@@ -48,7 +50,11 @@ def test_login_success(client):
     r = _login(client, "Fiona")
     assert r.status_code == 200
     body = r.json()
-    assert body["user"] == {"name": "Fiona", "role": "Data Analyst"}
+    assert body["user"] == {
+        "name": "Fiona",
+        "role": "Data Analyst",
+        "email": "fiona@lineagehub.example.com",
+    }
     # token 格式:{base64url(username)}.{issued_at}.{signature},整体必须是 ASCII(可放 HTTP 头)
     token = body["token"]
     token.encode("ascii")
@@ -75,7 +81,11 @@ def test_me_valid_token(client):
     token = _login(client, "Hanson").json()["token"]
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json() == {"name": "Hanson", "role": "System Owner"}
+    assert r.json() == {
+        "name": "Hanson",
+        "role": "System Owner",
+        "email": "hanson@lineagehub.example.com",
+    }
 
 
 def test_me_missing_header(client):

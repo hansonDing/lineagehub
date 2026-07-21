@@ -151,6 +151,7 @@ class AuthUser(BaseModel):
 
     name: str
     role: str
+    email: str = ""
 
 
 class LoginRequest(BaseModel):
