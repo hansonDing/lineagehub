@@ -10,6 +10,7 @@ export const zh: Record<string, string> = {
   'layout.nav.sql': 'SQL 管理',
   'layout.nav.metadata': '元数据配置',
   'layout.nav.changes': '变更与审批',
+  'layout.nav.settings': '集成设置',
   'layout.engine.name': '解析引擎 · sqlglot', // 侧栏引擎状态卡
   'layout.user.logout': '登出', // 顶栏登出按钮
   // ---------- 顶栏搜索 ----------
@@ -34,6 +35,7 @@ export const en: Record<string, string> = {
   'layout.nav.sql': 'SQL Management',
   'layout.nav.metadata': 'Metadata',
   'layout.nav.changes': 'Changes & Approvals',
+  'layout.nav.settings': 'Integration Settings',
   'layout.engine.name': 'Parser Engine · sqlglot',
   'layout.user.logout': 'Sign out',
   // ---------- Topbar search ----------

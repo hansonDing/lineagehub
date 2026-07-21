@@ -5,8 +5,9 @@
  * 所有写操作后调用 persist() 持久化到 localStorage(键 lineagehub-demo-v3)。
  */
 
-import type { Report, SqlScriptDetail } from '@/lib/api'
+import type { IntegrationSettings, Report, SqlScriptDetail } from '@/lib/api'
 import {
+  SEED_AUTH_USERS,
   SEED_REPORTS,
   SEED_SCRIPTS,
   SEED_SYSTEMS,
@@ -15,9 +16,39 @@ import {
 } from './seed'
 import { detectSqlType, engineParse, nextId, nowIso, persistParse, type MockState } from './engine'
 
-export const DEMO_STORAGE_KEY = 'lineagehub-demo-v3'
+export const DEMO_STORAGE_KEY = 'lineagehub-demo-v4'
 
 let cached: MockState | null = null
+
+/** 集成设置默认值:ADO/SMTP 未启用空配置,邮箱为 7 个种子用户 {name小写}@lineagehub.example.com */
+export function defaultIntegrationSettings(): IntegrationSettings {
+  return {
+    ado: {
+      enabled: false,
+      org_url: '',
+      project: '',
+      repo: '',
+      pat: '',
+      pat_set: false,
+      webhook_secret: '',
+      webhook_secret_set: false,
+    },
+    smtp: {
+      enabled: false,
+      host: '',
+      port: 465,
+      username: '',
+      password: '',
+      password_set: false,
+      from_addr: '',
+      use_tls: true,
+    },
+    emails: SEED_AUTH_USERS.map((u) => ({
+      name: u.name,
+      email: `${u.name.toLowerCase()}@lineagehub.example.com`,
+    })),
+  }
+}
 
 function emptyState(): MockState {
   return {
@@ -29,6 +60,7 @@ function emptyState(): MockState {
     reports: [],
     changes: [],
     approvals: [],
+    integrationSettings: defaultIntegrationSettings(),
     seq: { system: 1, table: 1, column: 1, script: 1, edge: 1, report: 1, change: 1, approval: 1 },
   }
 }
@@ -108,6 +140,8 @@ function loadFromStorage(): MockState | null {
       !Array.isArray(s.reports) ||
       !Array.isArray(s.changes) ||
       !Array.isArray(s.approvals) ||
+      typeof s.integrationSettings !== 'object' ||
+      s.integrationSettings === null ||
       typeof s.seq !== 'object' ||
       s.seq === null
     ) {
