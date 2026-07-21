@@ -724,3 +724,4 @@ export function InboxTab() {
     </div>
   )
 }
+
