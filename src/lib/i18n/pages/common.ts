@@ -55,6 +55,8 @@ export const zh: Record<string, string> = {
   // ---------- 变更类型 ----------
   'common.changeType.ddl_change': 'DDL 变更',
   'common.changeType.sql_change': 'SQL 变更',
+  'common.changeType.create_table': '新建表',
+  'common.changeType.drop_table': '删除表',
   // ---------- 代码编辑器状态条 ----------
   'common.editor.engine': 'Spark SQL · sqlglot 解析',
   'common.editor.position': '行 {line},列 {column} · UTF-8',
@@ -112,6 +114,8 @@ export const en: Record<string, string> = {
   // ---------- Change types ----------
   'common.changeType.ddl_change': 'DDL Change',
   'common.changeType.sql_change': 'SQL Change',
+  'common.changeType.create_table': 'Create Table',
+  'common.changeType.drop_table': 'Drop Table',
   // ---------- Code editor status bar ----------
   'common.editor.engine': 'Spark SQL · Parsed by sqlglot',
   'common.editor.position': 'Ln {line}, Col {column} · UTF-8',
