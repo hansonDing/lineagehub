@@ -93,12 +93,16 @@ export function isDiffEmpty(diff: ChangeDiff | null | undefined): boolean {
 /** 差异一句话:「新增 2 字段,删除 1 字段,变更 1 字段类型」/「新增 1 条血缘边」(文案走 changes.diff.*) */
 export function summarizeDiff(t: TFunc, changeType: ChangeType, diff: ChangeDiff): string {
   const parts: string[] = []
-  if (changeType === 'ddl_change') {
+  if (changeType === 'sql_change') {
+    const e = countEdgeDiff(diff)
+    if (e.added) parts.push(t('changes.diff.edgesAdded', { count: e.added }))
+    if (e.removed) parts.push(t('changes.diff.edgesRemoved', { count: e.removed }))
+  } else {
+    // ddl_change / create_table / drop_table:字段 + 血缘边兼有(create/drop 含边)
     const c = countColumnDiff(diff)
     if (c.added) parts.push(t('changes.diff.fieldsAdded', { count: c.added }))
     if (c.removed) parts.push(t('changes.diff.fieldsRemoved', { count: c.removed }))
     if (c.changed) parts.push(t('changes.diff.fieldsTypeChanged', { count: c.changed }))
-  } else {
     const e = countEdgeDiff(diff)
     if (e.added) parts.push(t('changes.diff.edgesAdded', { count: e.added }))
     if (e.removed) parts.push(t('changes.diff.edgesRemoved', { count: e.removed }))

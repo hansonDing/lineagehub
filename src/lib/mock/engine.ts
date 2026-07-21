@@ -676,6 +676,15 @@ export function downstreamImpact(state: MockState, tableIds: number[]): ImpactRe
 
 // ---------------------------------------------------------------- 变更事件与审批任务
 
+/** 额外审批任务(种子表影响面之外,如新建表的来源表 owner、被删表的 owner) */
+export interface ExtraTask {
+  approver_name: string
+  approver_role: ApprovalTask['approver_role']
+  target_type: ApprovalTask['target_type']
+  target_id: number
+  target_name: string
+}
+
 /** 创建 pending 变更事件 + 审批任务(此时不应用变更) */
 export function createChangeEvent(
   state: MockState,
@@ -687,6 +696,7 @@ export function createChangeEvent(
     diff: ChangeDiff
     submitted_by: string
     seed_table_ids: number[]
+    extra_tasks?: ExtraTask[]
   },
 ): ChangeEvent {
   const event: ChangeEvent = {
@@ -743,11 +753,66 @@ export function createChangeEvent(
       target_name: tbl.name,
     })
   }
+  // 额外任务:按 (角色,目标) 去重,避免与影响面任务重复
+  const seen = new Set(
+    state.approvals
+      .filter((a) => a.change_event_id === event.id)
+      .map((a) => `${a.approver_role}|${a.target_type}|${a.target_id}`),
+  )
+  for (const t of args.extra_tasks ?? []) {
+    const key = `${t.approver_role}|${t.target_type}|${t.target_id}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    push({ change_event_id: event.id, ...t })
+  }
   return event
 }
 
-/** 审批全部通过后应用变更:ddl_change 替换字段集;sql_change 更新脚本并重解析边 */
+/** 审批全部通过后应用变更:ddl_change 替换字段集;sql_change 更新脚本并重解析边;
+ * create_table 注册新表(CTAS 同时写入血缘边);drop_table 删除表、字段、关联边与绑定报表 */
 export function applyChange(state: MockState, event: ChangeEvent): void {
+  if (event.change_type === 'create_table') {
+    const name = event.object_name
+    if (state.tables.some((t) => t.name === name)) return // 已被其他途径创建,幂等跳过
+    const result = engineParse(event.new_text)
+    // 注册表与字段(不经过脚本)
+    const { table } = getOrCreateTable(state, name)
+    const cols = result.columnsByTable[name]
+    if (cols) replaceColumns(state, table, cols)
+    // CTAS:写入来源 → 新表的血缘边(script_id 为空,表示非脚本来源)
+    for (const edge of result.edges) {
+      if (edge.target !== name) continue
+      for (const srcName of edge.sources) {
+        const src = getOrCreateTable(state, srcName).table
+        const exists = state.edges.some(
+          (e) => e.src_table_id === src.id && e.dst_table_id === table.id,
+        )
+        if (!exists) {
+          state.edges.push({
+            id: nextId(state, 'edge'),
+            src_table_id: src.id,
+            dst_table_id: table.id,
+            script_id: null as unknown as number,
+            column_mapping: JSON.stringify(edge.column_mapping),
+            created_at: nowIso(),
+          })
+        }
+      }
+    }
+    return
+  }
+  if (event.change_type === 'drop_table') {
+    const table = state.tables.find((t) => t.name === event.object_name)
+    if (!table) return
+    // 关联血缘边(作为上游或下游)、字段、绑定报表、表本身
+    state.edges = state.edges.filter(
+      (e) => e.src_table_id !== table.id && e.dst_table_id !== table.id,
+    )
+    state.columns = state.columns.filter((c) => c.table_id !== table.id)
+    state.reports = state.reports.filter((r) => r.table_id !== table.id)
+    state.tables = state.tables.filter((t) => t.id !== table.id)
+    return
+  }
   if (event.change_type === 'ddl_change') {
     const table = state.tables.find((t) => t.name === event.object_name)
     if (!table) return

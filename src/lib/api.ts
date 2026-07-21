@@ -107,7 +107,7 @@ export interface ReportListItem extends Report {
 }
 
 /** 变更事件 */
-export type ChangeType = 'ddl_change' | 'sql_change'
+export type ChangeType = 'ddl_change' | 'sql_change' | 'create_table' | 'drop_table'
 export type ChangeStatus = 'pending' | 'approved' | 'rejected'
 
 export interface ChangeEvent {
@@ -577,6 +577,26 @@ export const submitSqlChange = (payload: {
   withFallback(
     () => request<ChangeEvent>('/changes/sql', { method: 'POST', body: payload }),
     () => mock.submitSqlChange(payload),
+  )
+
+/** 新建表变更(CREATE TABLE / CTAS):审批通过后新表与血缘边才真正入图 */
+export const submitCreateTableChange = (payload: {
+  new_ddl: string
+  submitted_by: string
+}) =>
+  withFallback(
+    () => request<ChangeEvent>('/changes/create-table', { method: 'POST', body: payload }),
+    () => mock.submitCreateTableChange(payload),
+  )
+
+/** 删除表变更(DROP TABLE):审批通过后表、字段、血缘边与绑定报表一并移除 */
+export const submitDropTableChange = (payload: {
+  table_id: number
+  submitted_by: string
+}) =>
+  withFallback(
+    () => request<ChangeEvent>('/changes/drop-table', { method: 'POST', body: payload }),
+    () => mock.submitDropTableChange(payload),
   )
 
 export const listChanges = () => withFallback(() => request<ChangeEventSummary[]>('/changes'), mock.listChanges)

@@ -716,6 +716,126 @@ export async function submitSqlChange(payload: {
   return changeDetail(state, event) as unknown as ChangeEvent
 }
 
+/** 新建表变更申请(CREATE TABLE / CTAS):只创建 pending 事件,审批通过后才入图 */
+export async function submitCreateTableChange(payload: {
+  new_ddl: string
+  submitted_by: string
+}): Promise<ChangeEvent> {
+  const state = getState()
+  const result = engineParse(payload.new_ddl)
+  // 新表名:优先全量 CREATE 定义,其次 CTAS 目标表
+  let name = Object.keys(result.columnsByTable)[0] ?? ''
+  if (!name) {
+    const ctas = result.edges.find((e) => e.target)
+    if (ctas) name = ctas.target
+  }
+  if (!name) fail(400, '无法解析出新表(需要 CREATE TABLE 或 CREATE TABLE ... AS SELECT)')
+  if (state.tables.some((t) => t.name === name)) fail(409, `表 ${name} 已存在`)
+
+  const cols = result.columnsByTable[name] ?? []
+  const diff = {
+    added: cols.map((c) => ({ name: c.name, data_type: c.data_type, comment: c.comment })),
+    removed: [],
+    type_changed: [],
+    edges_added: result.edges
+      .filter((e) => e.target === name)
+      .flatMap((e) => e.sources.map((s) => ({ source: s, target: name }))),
+  } as unknown as ChangeDiff
+
+  // 影响分析:来源表及其下游都会被「新消费者」波及;来源表 owner 参与审批
+  const srcTables = state.tables.filter((t) => result.sources.includes(t.name))
+  const event = createChangeEvent(state, {
+    change_type: 'create_table',
+    object_name: name,
+    old_text: '',
+    new_text: payload.new_ddl,
+    diff,
+    submitted_by: payload.submitted_by,
+    seed_table_ids: srcTables.map((t) => t.id),
+    extra_tasks: srcTables.map((t) => ({
+      approver_name: t.owner || '未设置',
+      approver_role: 'table_owner',
+      target_type: 'table',
+      target_id: t.id,
+      target_name: t.name,
+    })),
+  })
+  ensureApprovable(state, event, payload.submitted_by, name)
+  persist()
+  return changeDetail(state, event) as unknown as ChangeEvent
+}
+
+/** 删除表变更申请(DROP TABLE):diff 为字段移除 + 关联血缘边移除;审批通过后才真正删除 */
+export async function submitDropTableChange(payload: {
+  table_id: number
+  submitted_by: string
+}): Promise<ChangeEvent> {
+  const state = getState()
+  const table = state.tables.find((t) => t.id === payload.table_id)
+  if (!table) fail(404, '表不存在')
+
+  const tableName = (id: number) => state.tables.find((t) => t.id === id)?.name ?? ''
+  const incident = state.edges.filter(
+    (e) => e.src_table_id === table.id || e.dst_table_id === table.id,
+  )
+  const diff = {
+    added: [],
+    removed: columnsOf(state, table.id).map((c) => ({
+      name: c.name,
+      data_type: c.data_type,
+      comment: c.comment,
+    })),
+    type_changed: [],
+    edges_removed: incident.map((e) => ({
+      source: tableName(e.src_table_id),
+      target: tableName(e.dst_table_id),
+    })),
+  } as unknown as ChangeDiff
+
+  // 影响分析:被删表的全部下游(表/报表/系统)都受影响;表 owner 本人也参与审批
+  const event = createChangeEvent(state, {
+    change_type: 'drop_table',
+    object_name: table.name,
+    old_text: renderDdl(state, table),
+    new_text: `DROP TABLE ${table.name};`,
+    diff,
+    submitted_by: payload.submitted_by,
+    seed_table_ids: [table.id],
+    // 表有 owner 时才加 owner 任务;无 owner 时由兜底逻辑交给提交人自审,避免任务卡死
+    extra_tasks: table.owner
+      ? [
+          {
+            approver_name: table.owner,
+            approver_role: 'table_owner' as const,
+            target_type: 'table' as const,
+            target_id: table.id,
+            target_name: table.name,
+          },
+        ]
+      : [],
+  })
+  ensureApprovable(state, event, payload.submitted_by, table.name)
+  persist()
+  return changeDetail(state, event) as unknown as ChangeEvent
+}
+
+/** 零审批任务兜底:无任何受影响方时,由提交人自审,保证事件可闭环生效 */
+function ensureApprovable(state: MockState, event: ChangeEvent, submittedBy: string, objectName: string): void {
+  if (state.approvals.some((a) => a.change_event_id === event.id)) return
+  state.approvals.push({
+    id: nextId(state, 'approval'),
+    change_event_id: event.id,
+    approver_name: submittedBy || '未设置',
+    approver_role: 'table_owner',
+    target_type: 'table',
+    target_id: 0,
+    target_name: objectName,
+    status: 'pending',
+    comment: null,
+    decided_at: null,
+  })
+}
+
 export async function listChanges(): Promise<ChangeEventSummary[]> {
   const state = getState()
   return [...state.changes]
