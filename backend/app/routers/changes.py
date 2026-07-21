@@ -21,8 +21,10 @@ from backend.app.schemas import (
     ChangeDetail,
     ChangeEventOut,
     ChangeListItem,
+    CreateTableChangeRequest,
     DdlChangeRequest,
     DecisionRequest,
+    DropTableChangeRequest,
     SqlChangeRequest,
 )
 from backend.app.service import (
@@ -188,6 +190,142 @@ def submit_sql_change(payload: SqlChangeRequest, db: Session = Depends(get_db)):
         submitted_by=payload.submitted_by,
         seed_table_ids=seed_ids,
     )
+    db.commit()
+    db.refresh(event)
+    return _detail(db, event)
+
+
+def _ensure_approvable(db: Session, event: ChangeEvent, submitted_by: str, object_name: str) -> None:
+    """零审批任务兜底:无任何受影响方时,由提交人自审,保证事件可闭环生效。"""
+    if event.approvals:
+        return
+    db.add(
+        ApprovalTask(
+            change_event_id=event.id,
+            approver_name=submitted_by or "未设置",
+            approver_role="table_owner",
+            target_type="table",
+            target_id=0,
+            target_name=object_name,
+        )
+    )
+    db.flush()
+
+
+@router.post("/create-table", response_model=ChangeDetail)
+def submit_create_table_change(payload: CreateTableChangeRequest, db: Session = Depends(get_db)):
+    """新建表变更申请(CREATE TABLE / CTAS):只创建 pending 事件,审批通过后才入图。"""
+    result = parse_script(payload.new_ddl)
+    # 新表名:优先全量 CREATE 定义,其次 CTAS 目标表
+    name = next(iter(result.columns_by_table.keys()), "")
+    if not name:
+        ctas = next((e for e in result.edges if e.target), None)
+        if ctas is not None:
+            name = ctas.target
+    if not name:
+        raise HTTPException(400, "无法解析出新表(需要 CREATE TABLE 或 CREATE TABLE ... AS SELECT)")
+    if db.query(DataTable).filter(DataTable.name == name).first() is not None:
+        raise HTTPException(409, f"表 {name} 已存在")
+
+    cols = result.columns_by_table.get(name, [])
+    diff = {
+        "added": [
+            {"name": c.name, "data_type": c.data_type, "comment": c.comment} for c in cols
+        ],
+        "removed": [],
+        "type_changed": [],
+        "edges_added": [
+            {"source": s, "target": name}
+            for e in result.edges
+            if e.target == name
+            for s in e.sources
+        ],
+    }
+
+    # 影响分析:来源表及其下游都会被「新消费者」波及;来源表 owner 参与审批
+    src_tables = (
+        db.query(DataTable).filter(DataTable.name.in_(result.sources)).all()
+        if result.sources
+        else []
+    )
+    event = create_change_event(
+        db,
+        change_type="create_table",
+        object_name=name,
+        old_text="",
+        new_text=payload.new_ddl,
+        diff=diff,
+        submitted_by=payload.submitted_by,
+        seed_table_ids=[t.id for t in src_tables],
+        extra_tasks=[
+            {
+                "approver_name": t.owner or "未设置",
+                "approver_role": "table_owner",
+                "target_type": "table",
+                "target_id": t.id,
+                "target_name": t.name,
+            }
+            for t in src_tables
+        ],
+    )
+    _ensure_approvable(db, event, payload.submitted_by, name)
+    db.commit()
+    db.refresh(event)
+    return _detail(db, event)
+
+
+@router.post("/drop-table", response_model=ChangeDetail)
+def submit_drop_table_change(payload: DropTableChangeRequest, db: Session = Depends(get_db)):
+    """删除表变更申请(DROP TABLE):diff 为字段移除 + 关联血缘边移除;审批通过后才真正删除。"""
+    table = db.get(DataTable, payload.table_id)
+    if table is None:
+        raise HTTPException(404, "表不存在")
+
+    incident = (
+        db.query(LineageEdge)
+        .filter(
+            (LineageEdge.src_table_id == table.id) | (LineageEdge.dst_table_id == table.id)
+        )
+        .all()
+    )
+    diff = {
+        "added": [],
+        "removed": [
+            {"name": c.name, "data_type": c.data_type, "comment": c.comment}
+            for c in table.columns
+        ],
+        "type_changed": [],
+        "edges_removed": [
+            {"source": e.src_table.name, "target": e.dst_table.name} for e in incident
+        ],
+    }
+
+    # 影响分析:被删表的全部下游(表/报表/系统)都受影响;表 owner 本人也参与审批
+    event = create_change_event(
+        db,
+        change_type="drop_table",
+        object_name=table.name,
+        old_text=render_ddl(table),
+        new_text=f"DROP TABLE {table.name};",
+        diff=diff,
+        submitted_by=payload.submitted_by,
+        seed_table_ids=[table.id],
+        # 表有 owner 时才加 owner 任务;无 owner 时由兜底逻辑交给提交人自审,避免任务卡死
+        extra_tasks=(
+            [
+                {
+                    "approver_name": table.owner,
+                    "approver_role": "table_owner",
+                    "target_type": "table",
+                    "target_id": table.id,
+                    "target_name": table.name,
+                }
+            ]
+            if table.owner
+            else []
+        ),
+    )
+    _ensure_approvable(db, event, payload.submitted_by, table.name)
     db.commit()
     db.refresh(event)
     return _detail(db, event)

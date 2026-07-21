@@ -15,6 +15,7 @@ from backend.app.models import (
     ChangeEvent,
     DataTable,
     LineageEdge,
+    Report,
     SqlScript,
     TableColumn,
     utcnow,
@@ -276,8 +277,14 @@ def create_change_event(
     diff: dict,
     submitted_by: str,
     seed_table_ids: list,
+    extra_tasks: list | None = None,
 ) -> ChangeEvent:
-    """创建 pending 变更事件 + 审批任务(不应用变更)。"""
+    """创建 pending 变更事件 + 审批任务(不应用变更)。
+
+    extra_tasks:影响面之外的额外审批任务(如新建表的来源表 owner、被删表 owner),
+    元素为 dict(approver_name/approver_role/target_type/target_id/target_name),
+    按 (角色, 目标) 与影响面任务去重。
+    """
     event = ChangeEvent(
         change_type=change_type,
         object_name=object_name,
@@ -291,6 +298,15 @@ def create_change_event(
     session.flush()
     impact = downstream_impact(session, seed_table_ids)
     create_approval_tasks(session, event, impact)
+    seen = {
+        (t.approver_role, t.target_type, t.target_id) for t in event.approvals
+    }
+    for task in extra_tasks or []:
+        key = (task["approver_role"], task["target_type"], task["target_id"])
+        if key in seen:
+            continue
+        seen.add(key)
+        session.add(ApprovalTask(change_event_id=event.id, **task))
     session.flush()
     return event
 
@@ -311,8 +327,65 @@ def event_impact(session: Session, event: ChangeEvent) -> dict:
 
 def apply_change(session: Session, event: ChangeEvent) -> None:
     """审批全部通过后应用变更:
-    ddl_change -> 替换表字段集;sql_change -> 更新脚本并重解析边。
+    ddl_change -> 替换表字段集;sql_change -> 更新脚本并重解析边;
+    create_table -> 注册新表(CTAS 同时写入血缘边);
+    drop_table -> 删除表、字段、关联血缘边与绑定报表。
     """
+    if event.change_type == "create_table":
+        name = event.object_name
+        exists = session.query(DataTable).filter(DataTable.name == name).first()
+        if exists is not None:
+            return  # 已被其他途径创建,幂等跳过
+        result = parse_script(event.new_text)
+        table, _ = get_or_create_table(session, name)
+        cols = result.columns_by_table.get(name)
+        if cols:
+            replace_columns(session, table, cols)
+        # CTAS:写入来源 → 新表的血缘边(script_id=NULL 表示非脚本来源)
+        for edge in result.edges:
+            if edge.target != name:
+                continue
+            for src_name in edge.sources:
+                src, _ = get_or_create_table(session, src_name)
+                dup = (
+                    session.query(LineageEdge)
+                    .filter(
+                        LineageEdge.src_table_id == src.id,
+                        LineageEdge.dst_table_id == table.id,
+                    )
+                    .first()
+                )
+                if dup is None:
+                    session.add(
+                        LineageEdge(
+                            src_table_id=src.id,
+                            dst_table_id=table.id,
+                            script_id=None,
+                            column_mapping=json.dumps(
+                                edge.column_mapping or [], ensure_ascii=False
+                            ),
+                        )
+                    )
+        session.flush()
+        return
+    if event.change_type == "drop_table":
+        table = (
+            session.query(DataTable).filter(DataTable.name == event.object_name).first()
+        )
+        if table is None:
+            return
+        session.query(LineageEdge).filter(
+            (LineageEdge.src_table_id == table.id) | (LineageEdge.dst_table_id == table.id)
+        ).delete(synchronize_session=False)
+        session.query(TableColumn).filter(TableColumn.table_id == table.id).delete(
+            synchronize_session=False
+        )
+        session.query(Report).filter(Report.table_id == table.id).delete(
+            synchronize_session=False
+        )
+        session.delete(table)
+        session.flush()
+        return
     if event.change_type == "ddl_change":
         table = session.query(DataTable).filter(DataTable.name == event.object_name).first()
         if table is None:

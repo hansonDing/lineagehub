@@ -226,6 +226,16 @@ class SqlChangeRequest(BaseModel):
     submitted_by: str = ""
 
 
+class CreateTableChangeRequest(BaseModel):
+    new_ddl: str
+    submitted_by: str = ""
+
+
+class DropTableChangeRequest(BaseModel):
+    table_id: int
+    submitted_by: str = ""
+
+
 class ChangeEventOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
