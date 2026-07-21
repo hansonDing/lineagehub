@@ -232,6 +232,51 @@ export interface LoginResponse {
   user: AuthUser
 }
 
+// ---------- 集成设置(GET/PUT /settings/integrations) ----------
+
+/** Azure DevOps 集成配置(pat/webhook_secret 仅写入时提交,读取只回 *_set 标记) */
+export interface AdoSettings {
+  enabled: boolean
+  org_url: string
+  project: string
+  repo: string
+  pat?: string
+  pat_set: boolean
+  webhook_secret?: string
+  webhook_secret_set: boolean
+}
+
+/** SMTP 邮件通知配置(password 仅写入时提交,读取只回 password_set) */
+export interface SmtpSettings {
+  enabled: boolean
+  host: string
+  port: number
+  username: string
+  password?: string
+  password_set: boolean
+  from_addr: string
+  use_tls: boolean
+}
+
+/** 用户通知邮箱 */
+export interface UserEmail {
+  name: string
+  email: string
+}
+
+/** 集成设置总览(GET /settings/integrations) */
+export interface IntegrationSettings {
+  ado: AdoSettings
+  smtp: SmtpSettings
+  emails: UserEmail[]
+}
+
+/** 连接/发送测试结果(POST /settings/integrations/test-ado|test-smtp) */
+export interface IntegrationTestResult {
+  ok: boolean
+  detail: string
+}
+
 /** 批量导入单文件结果状态(POST /scripts/batch-import) */
 export type BatchImportStatus = 'ok' | 'warning' | 'error'
 
@@ -626,6 +671,38 @@ export const decideApproval = (
   withFallback(
     () => request<ChangeEvent>(`/approvals/${id}/decision`, { method: 'POST', body: payload }),
     () => mock.decideApproval(id, payload),
+  )
+
+// ---------- 集成设置(仅 System Owner) ----------
+
+export const getIntegrationSettings = () =>
+  withFallback(
+    () => request<IntegrationSettings>('/settings/integrations'),
+    mock.getIntegrationSettings,
+  )
+
+/** 更新集成设置;pat/password/webhook_secret 传空串表示保持不变 */
+export const updateIntegrationSettings = (payload: IntegrationSettings) =>
+  withFallback(
+    () => request<IntegrationSettings>('/settings/integrations', { method: 'PUT', body: payload }),
+    () => mock.updateIntegrationSettings(payload),
+  )
+
+export const testSmtp = (to: string) =>
+  withFallback(
+    () =>
+      request<IntegrationTestResult>('/settings/integrations/test-smtp', {
+        method: 'POST',
+        body: { to },
+      }),
+    () => mock.testSmtp(to),
+  )
+
+export const testAdo = () =>
+  withFallback(
+    () =>
+      request<IntegrationTestResult>('/settings/integrations/test-ado', { method: 'POST' }),
+    mock.testAdo,
   )
 
 // ---------- 仪表盘 ----------
