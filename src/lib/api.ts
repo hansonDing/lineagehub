@@ -329,6 +329,13 @@ async function request<T>(
     headers: Object.keys(headers).length > 0 ? headers : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
+  if (res.status === 204) return undefined as T
+  // 静态托管/预览环境没有后端时,/api/* 通常被 SPA fallback 或静态 404 页拦截,
+  // 返回非 JSON 内容(HTML)。这种情况视为"后端不可达",抛出非 ApiError 让 withFallback 降级到演示模式。
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    throw new TypeError(`API 返回非 JSON 响应(status=${res.status}, content-type=${contentType || 'unknown'}),视为后端不可达`)
+  }
   if (!res.ok) {
     let message = `请求失败(${res.status})`
     try {
@@ -339,7 +346,6 @@ async function request<T>(
     }
     throw new ApiError(res.status, message)
   }
-  if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }
 
