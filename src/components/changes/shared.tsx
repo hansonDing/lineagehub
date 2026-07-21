@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { animate, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { ApproverRole, ChangeDiff, ChangeStatus, ColumnDiffEntry } from '@/lib/api'
+import type { ApproverRole, ChangeDiff, ChangeStatus, ChangeType, ColumnDiffEntry } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { columnNewType, columnOldType } from './types'
 
@@ -169,9 +169,15 @@ export function EdgeDiffList({ diff }: { diff: ChangeDiff }) {
   )
 }
 
-/** 按变更类型渲染结构化 diff(字段表 / 血缘边) */
-export function ChangeDiffView({ type, diff }: { type: 'ddl_change' | 'sql_change'; diff: ChangeDiff }) {
-  return type === 'ddl_change' ? <FieldDiffTable diff={diff} /> : <EdgeDiffList diff={diff} />
+/** 按变更类型渲染结构化 diff(字段表 / 血缘边;create/drop 表两者兼有,组件空数据自动隐藏) */
+export function ChangeDiffView({ type, diff }: { type: ChangeType; diff: ChangeDiff }) {
+  if (type === 'sql_change') return <EdgeDiffList diff={diff} />
+  return (
+    <div className="space-y-3">
+      <FieldDiffTable diff={diff} />
+      <EdgeDiffList diff={diff} />
+    </div>
+  )
 }
 
 // ---------- 影响摘要 chips(12px 无底色,图标区分) ----------

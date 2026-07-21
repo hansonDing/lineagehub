@@ -619,6 +619,8 @@ export function InboxTab() {
               <SelectItem value="all">{t('changes.filter.allTypes')}</SelectItem>
               <SelectItem value="ddl_change">{t('common.changeType.ddl_change')}</SelectItem>
               <SelectItem value="sql_change">{t('common.changeType.sql_change')}</SelectItem>
+              <SelectItem value="create_table">{t('common.changeType.create_table')}</SelectItem>
+              <SelectItem value="drop_table">{t('common.changeType.drop_table')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
@@ -722,4 +724,3 @@ export function InboxTab() {
     </div>
   )
 }
-

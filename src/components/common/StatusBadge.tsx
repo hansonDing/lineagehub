@@ -1,4 +1,4 @@
-import { FileCode2, FileDiff } from 'lucide-react'
+import { FileCode2, FileDiff, PlusCircle, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChangeType } from '@/lib/api'
 import { useT } from '@/lib/i18n'
@@ -72,7 +72,14 @@ export function StatusBadge({ status, label, hideDot, className }: StatusBadgePr
 /** 变更类型徽标:DDL 变更(FileDiff)/ SQL 变更(FileCode2),slate 底 */
 export function ChangeTypeBadge({ type, className }: { type: ChangeType; className?: string }) {
   const { t } = useT()
-  const Icon = type === 'ddl_change' ? FileDiff : FileCode2
+  const Icon =
+    type === 'ddl_change'
+      ? FileDiff
+      : type === 'create_table'
+        ? PlusCircle
+        : type === 'drop_table'
+          ? Trash2
+          : FileCode2
   return (
     <span
       className={cn(
