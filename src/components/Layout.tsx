@@ -8,10 +8,13 @@ import {
   GitPullRequest,
   LayoutDashboard,
   LogOut,
+  Menu,
   Network,
   Search,
   Settings,
+  X,
 } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
   getDemoModeListeners,
@@ -63,10 +66,21 @@ function SidebarSection({ children }: { children: ReactNode }) {
   return <div className="px-3">{children}</div>
 }
 
-function Sidebar({ pendingCount, user, role }: { pendingCount: number; user: string; role: string }) {
+function Sidebar({
+  pendingCount,
+  user,
+  role,
+  onNavigate,
+}: {
+  pendingCount: number
+  user: string
+  role: string
+  /** 移动端抽屉内点击导航后收起抽屉 */
+  onNavigate?: () => void
+}) {
   const { t } = useT()
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 flex w-[232px] flex-col bg-ink">
+    <aside className="flex h-full w-[232px] max-w-[85vw] flex-col bg-ink">
       {/* Logo 区:高 56px,与顶栏齐平 */}
       <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
         <img src="/logo.svg" alt="LineageHub" width={28} height={28} />
@@ -83,6 +97,7 @@ function Sidebar({ pendingCount, user, role }: { pendingCount: number; user: str
             key={item.to}
             to={item.to}
             end={'end' in item ? item.end : false}
+            onClick={onNavigate}
             className={({ isActive }) =>
               cn(
                 'group flex h-9 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium transition-colors duration-120',
@@ -216,7 +231,10 @@ function GlobalSearch() {
   return (
     <div
       ref={boxRef}
-      className={cn('relative transition-[width] duration-200', focused ? 'w-[420px]' : 'w-80')}
+      className={cn(
+        'relative hidden transition-[width] duration-200 md:block',
+        focused ? 'w-[min(420px,calc(100vw-220px))]' : 'w-52 lg:w-80',
+      )}
     >
       <div className="flex h-8 items-center gap-2 rounded-md bg-slate-100 px-2.5">
         <Search className="size-4 shrink-0 text-slate-400" />
@@ -225,9 +243,9 @@ function GlobalSearch() {
           onChange={(e) => setKeyword(e.target.value)}
           onFocus={() => setFocused(true)}
           placeholder={t('layout.search.placeholder')}
-          className="h-full flex-1 bg-transparent text-[13px] text-slate-900 outline-none placeholder:text-slate-400"
+          className="h-full min-w-0 flex-1 bg-transparent text-[13px] text-slate-900 outline-none placeholder:text-slate-400"
         />
-        <kbd className="rounded border border-slate-200 bg-white px-1 font-mono text-[11px] leading-4 text-slate-400">
+        <kbd className="hidden rounded border border-slate-200 bg-white px-1 font-mono text-[11px] leading-4 text-slate-400 lg:block">
           ⌘K
         </kbd>
       </div>
@@ -317,7 +335,7 @@ function UserMenu({ pendingCount }: { pendingCount: number }) {
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 sm:gap-3">
       {/* 通知铃铛 */}
       <button
         type="button"
@@ -340,7 +358,7 @@ function UserMenu({ pendingCount }: { pendingCount: number }) {
       {/* 登出:清 token 跳 /login */}
       <Button variant="ghost" size="sm" onClick={handleLogout} aria-label={t('layout.user.logout')}>
         <LogOut className="size-3.5" />
-        {t('layout.user.logout')}
+        <span className="hidden sm:inline">{t('layout.user.logout')}</span>
       </Button>
     </div>
   )
@@ -354,6 +372,7 @@ export default function Layout() {
   const { user, role } = useUser()
   const [pendingCount, setPendingCount] = useState(0)
   const [demoMode, setDemoMode] = useState(isDemoMode())
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // 订阅演示模式:API 降级到内置模拟数据时即时显示琥珀色徽标
   useEffect(() => {
@@ -377,6 +396,11 @@ export default function Layout() {
     refreshPending()
   }, [refreshPending, location.pathname])
 
+  // 路由切换时收起移动端抽屉
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
   useEffect(() => {
     window.addEventListener(APPROVALS_REFRESH_EVENT, refreshPending)
     return () => window.removeEventListener(APPROVALS_REFRESH_EVENT, refreshPending)
@@ -387,21 +411,72 @@ export default function Layout() {
 
   return (
     <div className="min-h-[100dvh] bg-slate-50">
-      <Sidebar pendingCount={pendingCount} user={user} role={role} />
-      <div className="pl-[232px]">
+      {/* 桌面端固定侧栏(lg 起) */}
+      <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
+        <Sidebar pendingCount={pendingCount} user={user} role={role} />
+      </div>
+      {/* 移动端抽屉侧栏:汉堡按钮触发,点导航项/遮罩收起 */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <motion.div
+              key="nav-mask"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMenuOpen(false)}
+              className="fixed inset-0 z-40 bg-[rgba(15,23,42,0.45)] lg:hidden"
+            />
+            <motion.div
+              key="nav-panel"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
+              className="fixed inset-y-0 left-0 z-50 shadow-overlay lg:hidden"
+            >
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                aria-label={t('layout.menu.close')}
+                className="absolute -right-10 top-3 flex size-8 items-center justify-center rounded-md bg-ink text-slate-300"
+              >
+                <X className="size-4" />
+              </button>
+              <Sidebar
+                pendingCount={pendingCount}
+                user={user}
+                role={role}
+                onNavigate={() => setMenuOpen(false)}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+      <div className="lg:pl-[232px]">
         {/* 顶栏 */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-slate-200 bg-white px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:gap-4 sm:px-6">
+          {/* 汉堡按钮(移动端打开抽屉) */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label={t('layout.menu.open')}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors duration-120 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
+          >
+            <Menu className="size-4.5" />
+          </button>
           {/* 面包屑 */}
-          <nav className="flex items-center gap-1.5 text-[13px]">
-            <span className="text-slate-500">LineageHub</span>
-            <span className="text-slate-300">/</span>
-            <span className="font-semibold text-slate-900">{title}</span>
+          <nav className="flex min-w-0 items-center gap-1.5 text-[13px]">
+            <span className="hidden text-slate-500 sm:inline">LineageHub</span>
+            <span className="hidden text-slate-300 sm:inline">/</span>
+            <span className="truncate font-semibold text-slate-900">{title}</span>
           </nav>
           <div className="flex-1" />
           <GlobalSearch />
           <LangSwitcher />
           {/* 环境徽标 */}
-          <span className="flex h-6 items-center gap-1.5 rounded bg-slate-100 px-2 text-xs text-slate-600">
+          <span className="hidden h-6 items-center gap-1.5 rounded bg-slate-100 px-2 text-xs text-slate-600 xl:flex">
             <span className="size-1.5 rounded-full bg-success" />
             {t('layout.env.production')}
           </span>
@@ -409,17 +484,17 @@ export default function Layout() {
           {demoMode && (
             <span
               title={t('layout.env.demoTip')}
-              className="flex h-6 cursor-default items-center gap-1.5 rounded px-2 text-[11px] font-medium"
+              className="hidden h-6 cursor-default items-center gap-1.5 rounded px-2 text-[11px] font-medium sm:flex"
               style={{ backgroundColor: 'rgba(217, 119, 6, 0.1)', color: '#D97706' }}
             >
               <span className="size-1.5 rounded-full" style={{ backgroundColor: '#D97706' }} />
-              {t('layout.env.demo')}
+              <span className="hidden md:inline">{t('layout.env.demo')}</span>
             </span>
           )}
           <UserMenu pendingCount={pendingCount} />
         </header>
         {/* 内容区:血缘图谱页 0 padding 撑满画布 */}
-        <main className={isCanvasPage ? 'h-[calc(100dvh-56px)]' : 'p-6'}>
+        <main className={isCanvasPage ? 'h-[calc(100dvh-56px)]' : 'p-4 sm:p-6'}>
           <Outlet />
         </main>
       </div>

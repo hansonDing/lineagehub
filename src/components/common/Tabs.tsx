@@ -39,7 +39,13 @@ export function Tabs({
   }, [value, items])
 
   return (
-    <div ref={containerRef} className={cn('relative flex items-center gap-6 border-b border-slate-200', className)}>
+    <div
+      ref={containerRef}
+      className={cn(
+        'relative flex items-center gap-6 overflow-x-auto border-b border-slate-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        className,
+      )}
+    >
       {items.map((item) => {
         const active = item.key === value
         return (
@@ -49,7 +55,7 @@ export function Tabs({
             type="button"
             onClick={() => onChange(item.key)}
             className={cn(
-              'relative flex items-center gap-1.5 px-1 py-2 text-sm font-medium transition-colors duration-120',
+              'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-1 py-2 text-sm font-medium transition-colors duration-120',
               active ? 'text-primary-700' : 'text-slate-500 hover:text-slate-900',
             )}
           >

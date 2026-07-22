@@ -225,7 +225,7 @@ export function DetailDrawer({
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-      className="absolute inset-y-0 right-0 z-20 flex w-[400px] flex-col border-l border-[#1E293B] bg-[#0F172A]"
+      className="absolute inset-y-0 right-0 z-20 flex w-full flex-col border-l border-[#1E293B] bg-[#0F172A] sm:w-[400px]"
     >
       {loading || !detail ? (
         /* 加载骨架 */

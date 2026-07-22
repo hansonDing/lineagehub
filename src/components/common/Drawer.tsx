@@ -58,9 +58,9 @@ export function Drawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-            style={{ width }}
+            style={{ width: `min(100%, ${width}px)` }}
             className={cn(
-              'fixed inset-y-0 right-0 z-50 flex flex-col shadow-overlay',
+              'fixed inset-y-0 right-0 z-50 flex w-full flex-col shadow-overlay',
               dark ? 'bg-ink text-slate-200' : 'bg-white text-slate-900',
             )}
           >

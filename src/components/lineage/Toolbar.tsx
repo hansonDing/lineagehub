@@ -58,7 +58,7 @@ function TableSearch({ tables, onPick }: { tables: TableRef[]; onPick: (t: Table
 
   return (
     <div ref={boxRef} className="relative">
-      <FloatingBox className="w-[260px] gap-2 px-3">
+      <FloatingBox className="w-[180px] gap-2 px-3 sm:w-[260px]">
         <Search className="size-3.5 shrink-0 text-[#8B98AD]" />
         <input
           value={keyword}
@@ -248,7 +248,7 @@ export function Toolbar(props: ToolbarProps) {
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, delay: 0.1 }}
-      className="absolute left-4 top-4 z-10 flex items-center gap-2"
+      className="absolute left-4 right-4 top-4 z-10 flex flex-wrap items-center gap-2"
     >
       <TableSearch tables={tables} onPick={onPickTable} />
       <ModeSwitch mode={mode} onChange={onModeChange} />
@@ -284,7 +284,7 @@ export function Toolbar(props: ToolbarProps) {
 /** 加载期工具条骨架(lineage.md §6) */
 export function ToolbarSkeleton() {
   return (
-    <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
+    <div className="absolute left-4 right-4 top-4 z-10 flex flex-wrap items-center gap-2">
       {[260, 172, 220, 40].map((w, i) => (
         <div
           key={i}

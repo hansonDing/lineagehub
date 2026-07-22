@@ -13,6 +13,8 @@ export const zh: Record<string, string> = {
   'layout.nav.settings': '集成设置',
   'layout.engine.name': '解析引擎 · sqlglot', // 侧栏引擎状态卡
   'layout.user.logout': '登出', // 顶栏登出按钮
+  'layout.menu.open': '打开菜单', // 移动端汉堡按钮 aria-label
+  'layout.menu.close': '关闭菜单', // 移动端抽屉关闭按钮 aria-label
   // ---------- 顶栏搜索 ----------
   'layout.search.placeholder': '搜索表 / 报表 / 系统…',
   'layout.search.empty': '未找到匹配的结果',
@@ -38,6 +40,8 @@ export const en: Record<string, string> = {
   'layout.nav.settings': 'Integration Settings',
   'layout.engine.name': 'Parser Engine · sqlglot',
   'layout.user.logout': 'Sign out',
+  'layout.menu.open': 'Open menu',
+  'layout.menu.close': 'Close menu',
   // ---------- Topbar search ----------
   'layout.search.placeholder': 'Search tables / reports / systems…',
   'layout.search.empty': 'No matching results',

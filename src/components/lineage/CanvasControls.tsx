@@ -27,6 +27,7 @@ export function CanvasControls({ offsetRight }: { offsetRight: number }) {
       {/* Minimap 160×110:节点为层色小方块,视口框 #3B4E6E,可拖拽 */}
       <MiniMap<FlowNode>
         position="bottom-right"
+        className="hidden sm:block"
         pannable
         zoomable
         style={{

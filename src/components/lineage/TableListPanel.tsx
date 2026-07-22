@@ -21,7 +21,8 @@ export function TableListPanel({
   onPick: (t: TableRef) => void
 }) {
   const { t } = useT()
-  const [collapsed, setCollapsed] = useState(false)
+  // 窄屏(手机)默认折叠为 40px 窄轨,避免遮挡画布
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 640)
   const [closedGroups, setClosedGroups] = useState<Set<TableLayer>>(new Set())
 
   const groups = useMemo(() => {
@@ -50,12 +51,12 @@ export function TableListPanel({
       initial={{ x: '-100%' }}
       animate={{ x: 0 }}
       transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-      className="absolute bottom-0 left-0 top-16 z-10"
+      className="absolute bottom-0 left-0 top-32 z-10 sm:top-16"
     >
       <motion.div
         animate={{ width: collapsed ? 40 : 240 }}
         transition={{ duration: 0.2 }}
-        className="flex h-full flex-col border-r border-[#1E293B] bg-[rgba(12,18,34,0.95)]"
+        className="flex h-full max-w-[70vw] flex-col border-r border-[#1E293B] bg-[rgba(12,18,34,0.95)]"
       >
         {collapsed ? (
           /* 40px 窄轨:层色点纵列 + 展开按钮 */

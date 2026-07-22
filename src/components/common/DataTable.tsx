@@ -54,7 +54,9 @@ export function DataTable<T extends Record<string, unknown>>({
   const { t } = useT()
   return (
     <div className={cn('overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card', className)}>
-      <table className="w-full border-collapse text-left">
+      {/* 窄屏横向滚动:表格保持最小宽度不挤压变形 */}
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[640px] border-collapse text-left">
         <thead>
           <tr className="h-9 border-b border-slate-200 bg-slate-50">
             {columns.map((col) => (
@@ -127,6 +129,7 @@ export function DataTable<T extends Record<string, unknown>>({
           )}
         </tbody>
       </table>
+      </div>
       {footer && (
         <div className="flex h-10 items-center justify-end gap-2 border-t border-slate-200 px-3 text-xs text-slate-500">
           {footer === true ? t('common.table.total', { count: data.length }) : footer}

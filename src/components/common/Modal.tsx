@@ -41,7 +41,7 @@ export function Modal({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-16">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-8 sm:py-16">
           <motion.div
             key="mask"
             initial={{ opacity: 0 }}
@@ -57,8 +57,8 @@ export function Modal({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.97 }}
             transition={{ duration: 0.18 }}
-            style={{ width }}
-            className="relative z-10 flex max-h-[calc(100dvh-8rem)] flex-col rounded-[10px] bg-white shadow-modal"
+            style={{ width: `min(100%, ${width}px)` }}
+            className="relative z-10 flex max-h-[calc(100dvh-4rem)] w-full flex-col rounded-[10px] bg-white shadow-modal sm:max-h-[calc(100dvh-8rem)]"
           >
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-5">
               <h2 className={cn('text-base font-semibold', danger ? 'text-danger' : 'text-slate-900')}>
