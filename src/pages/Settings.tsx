@@ -308,8 +308,8 @@ export default function Settings() {
                   />
                 </div>
               </div>
-              <div className="flex items-end gap-3">
-                <div className="w-72">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-full sm:w-72">
                   <Field label={t('settings.smtp.testTo')}>
                     <TextInput
                       mono

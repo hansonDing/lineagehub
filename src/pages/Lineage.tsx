@@ -235,7 +235,7 @@ export default function Lineage() {
   }, [built, setNodes, setEdges])
 
   // ---------- hover 链路高亮:就地增量更新 ----------
-  // 只替换视觉状态真正变化的节点/边对象,其余保持对象身份不变,
+  // 只替换视觉状态真正变化的节点/边对象,其余保对象身份不变,
   // React Flow 因此只做最小化更新,流动虚线动画不会被重启。
   useEffect(() => {
     if (!currentGraph) return
@@ -504,7 +504,7 @@ export default function Lineage() {
 
       {/* 聚合提示条 */}
       {aggregate && (
-        <div className="absolute left-1/2 top-4 z-10 flex h-8 -translate-x-1/2 items-center gap-2 rounded-lg border border-[rgba(29,78,216,0.3)] bg-[rgba(37,99,235,0.15)] px-3 text-xs text-[#CBD5E1]">
+        <div className="absolute left-1/2 top-24 z-10 flex h-8 -translate-x-1/2 items-center gap-2 rounded-lg border border-[rgba(29,78,216,0.3)] bg-[rgba(37,99,235,0.15)] px-3 text-xs text-[#CBD5E1] sm:top-4">
           <Info className="size-3.5 shrink-0 text-[#8B98AD]" />
           {t('lineage.aggregate.hint', { count: overview?.nodes.length ?? 0 })}
         </div>
