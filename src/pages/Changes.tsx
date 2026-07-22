@@ -61,11 +61,11 @@ function StatsBar({ stats, loading }: { stats: StatsData | null; loading: boolea
             ease: [0.22, 1, 0.36, 1],
           }}
           className={cn(
-            'flex flex-1 flex-col justify-center px-4',
+            'flex min-w-0 flex-1 flex-col justify-center px-3 sm:px-4',
             i > 0 && 'border-l border-slate-100',
           )}
         >
-          <span className="text-xs text-slate-500">{seg.label}</span>
+          <span className="truncate text-xs text-slate-500">{seg.label}</span>
           <span
             className={cn(
               'mt-0.5 font-mono text-xl font-semibold leading-6',

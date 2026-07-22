@@ -154,8 +154,8 @@ export default function Login() {
       </div>
 
       {/* ============ 右侧登录卡 ============ */}
-      <div className="relative flex flex-1 items-center justify-center bg-slate-50 px-6 py-10">
-        <div className="absolute right-6 top-5">
+      <div className="relative flex flex-1 items-center justify-center bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
+        <div className="absolute right-4 top-4 sm:right-6 sm:top-5">
           <LangSwitcher />
         </div>
         <div className="w-full max-w-[400px]">
