@@ -967,7 +967,7 @@ export default function Sql() {
         )}
       </Modal>
 
-      {/* 删除确认模态(非名称二次确认,仅统/报表需要) */}
+      {/* 删除确认模态(非名称二次确认,仅系统/报表需要) */}
       <Modal
         open={!!deleting}
         onClose={() => setDeleting(null)}
