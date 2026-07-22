@@ -752,17 +752,17 @@ export default function Sql() {
       {/* ============ 区块三:脚本列表 ============ */}
       <Section index={2}>
         <div className="rounded-lg border border-slate-200 bg-white shadow-card">
-          <div className="flex h-12 flex-wrap items-center gap-2 border-b border-slate-200 px-4">
+          <div className="flex min-h-12 flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-2 sm:py-0">
             <h2 className="text-[15px] font-semibold text-slate-900">{t('sql.list.title')}</h2>
             <span className="rounded bg-slate-100 px-1 text-[11px] leading-4 text-slate-500">{scripts.length}</span>
-            <div className="ml-auto flex items-center gap-2">
-              <div className="relative">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+              <div className="relative min-w-0 flex-1 sm:flex-none">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
                 <input
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder={t('sql.list.searchPlaceholder')}
-                  className="h-8 w-52 rounded-md border border-slate-300 bg-white pl-8 pr-2.5 text-[13px] outline-none transition-colors placeholder:text-slate-400 focus:border-primary-600 focus:ring-2 focus:ring-[rgba(13,148,136,0.30)]"
+                  className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-2.5 text-[13px] outline-none transition-colors placeholder:text-slate-400 focus:border-primary-600 focus:ring-2 focus:ring-[rgba(13,148,136,0.30)] sm:w-52"
                 />
               </div>
               <select
@@ -967,7 +967,7 @@ export default function Sql() {
         )}
       </Modal>
 
-      {/* 删除确认模态(非名称二次确认,仅系统/报表需要) */}
+      {/* 删除确认模态(非名称二次确认,仅统/报表需要) */}
       <Modal
         open={!!deleting}
         onClose={() => setDeleting(null)}
