@@ -291,7 +291,7 @@ function ApprovalsCard({
                 >
                   <div
                     onClick={() => navigate(`/changes?tab=inbox&change=${item.change_event_id}`)}
-                    className="flex h-16 cursor-pointer items-center gap-3 border-b border-slate-100 px-4 transition-colors duration-120 hover:bg-slate-50"
+                    className="flex min-h-16 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-100 px-4 py-2 transition-colors duration-120 hover:bg-slate-50"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -301,7 +301,7 @@ function ApprovalsCard({
                         </span>
                         <StatusBadge status="pending" className="shrink-0" />
                       </div>
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                         <span className="font-mono">{formatChangeId(item.change_event_id)}</span>
                         <span>·</span>
                         <span>{t('dashboard.approvals.submittedBy', { user: event?.submitted_by ?? '-' })}</span>
@@ -615,7 +615,7 @@ function HotTablesCard({
                     {table.name}
                   </span>
                   {table.owner && (
-                    <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500">
+                    <span className="hidden shrink-0 items-center gap-1.5 text-xs text-slate-500 sm:flex">
                       <Avatar name={table.owner} size={24} />
                       {table.owner}
                     </span>
@@ -766,10 +766,10 @@ export default function Dashboard() {
   return (
     <div className="mx-auto max-w-[1600px]">
       {/* 页面头 */}
-      <Section index={0} className="mb-4 flex items-center justify-between">
+      <Section index={0} className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-baseline gap-3">
           <h1 className="text-xl font-semibold leading-7 text-slate-900">{t('dashboard.title')}</h1>
-          <span className="text-xs text-slate-500">
+          <span className="hidden text-xs text-slate-500 sm:inline">
             {t('dashboard.subtitle', { time: updatedAt ? relativeTime(updatedAt.toISOString()) : '—' })}
           </span>
         </div>
