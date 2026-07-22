@@ -235,7 +235,7 @@ export default function Lineage() {
   }, [built, setNodes, setEdges])
 
   // ---------- hover 链路高亮:就地增量更新 ----------
-  // 只替换视觉状态真正变化的节点/边对象,其余保对象身份不变,
+  // 只替换视觉状态真正变化的节点/边对象,其余保持对象身份不变,
   // React Flow 因此只做最小化更新,流动虚线动画不会被重启。
   useEffect(() => {
     if (!currentGraph) return
