@@ -51,6 +51,7 @@ export function TableListPanel({
       initial={{ x: '-100%' }}
       animate={{ x: 0 }}
       transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+      data-tour="lineage-table-list"
       className="absolute bottom-0 left-0 top-32 z-10 sm:top-16"
     >
       <motion.div

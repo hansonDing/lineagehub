@@ -9,6 +9,7 @@ import { zh as sqlZh, en as sqlEn } from './pages/sql'
 import { zh as metadataZh, en as metadataEn } from './pages/metadata'
 import { zh as changesZh, en as changesEn } from './pages/changes'
 import { zh as settingsZh, en as settingsEn } from './pages/settings'
+import { zh as tourZh, en as tourEn } from './pages/tour'
 
 /**
  * i18n 核心:LanguageProvider + useT()
@@ -40,6 +41,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     ...metadataZh,
     ...changesZh,
     ...settingsZh,
+    ...tourZh,
   },
   en: {
     ...commonEn,
@@ -51,6 +53,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     ...metadataEn,
     ...changesEn,
     ...settingsEn,
+    ...tourEn,
   },
 }
 

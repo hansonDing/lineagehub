@@ -190,21 +190,23 @@ export default function Changes() {
       <StatsBar stats={stats} loading={statsLoading} />
 
       {/* Tabs */}
-      <Tabs
-        className="mb-4"
-        items={[
-          {
-            key: 'inbox',
-            label: t('changes.tabs.inbox'),
-            count: stats?.mine,
-            countTone: 'pending',
-          },
-          { key: 'events', label: t('changes.tabs.events') },
-          { key: 'create', label: t('changes.action.create') },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
+      <div data-tour="changes-tabs">
+        <Tabs
+          className="mb-4"
+          items={[
+            {
+              key: 'inbox',
+              label: t('changes.tabs.inbox'),
+              count: stats?.mine,
+              countTone: 'pending',
+            },
+            { key: 'events', label: t('changes.tabs.events') },
+            { key: 'create', label: t('changes.action.create') },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </div>
 
       {/* Tab 内容(切换 opacity 150ms) */}
       <AnimatePresence mode="wait" initial={false}>
