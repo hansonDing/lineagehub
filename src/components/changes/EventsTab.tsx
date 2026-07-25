@@ -171,7 +171,7 @@ export function EventsTab({
   }, [filtered])
 
   return (
-    <div>
+    <div data-tour="changes-events">
       {/* 来源筛选 + 统计摘要(随来源筛选联动) */}
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">

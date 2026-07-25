@@ -248,6 +248,7 @@ export function Toolbar(props: ToolbarProps) {
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, delay: 0.1 }}
+      data-tour="lineage-toolbar"
       className="absolute left-4 right-4 top-4 z-10 flex flex-wrap items-center gap-2"
     >
       <TableSearch tables={tables} onPick={onPickTable} />
