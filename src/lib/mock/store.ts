@@ -5,7 +5,7 @@
  * 所有写操作后调用 persist() 持久化到 localStorage(键 lineagehub-demo-v3)。
  */
 
-import type { IntegrationSettings, Report, SqlScriptDetail } from '@/lib/api'
+import type { ChangeDiff, IntegrationSettings, Report, SqlScriptDetail } from '@/lib/api'
 import {
   SEED_AUTH_USERS,
   SEED_REPORTS,
@@ -14,7 +14,16 @@ import {
   SEED_TABLE_OWNERS,
   SEED_TABLE_SOURCE,
 } from './seed'
-import { detectSqlType, engineParse, nextId, nowIso, persistParse, type MockState } from './engine'
+import {
+  applyChange,
+  createChangeEvent,
+  detectSqlType,
+  engineParse,
+  nextId,
+  nowIso,
+  persistParse,
+  type MockState,
+} from './engine'
 
 export const DEMO_STORAGE_KEY = 'lineagehub-demo-v4'
 
@@ -119,6 +128,87 @@ export function buildSeedState(): MockState {
     }
     state.reports.push(report)
   }
+
+  // 5. 演示变更事件:既有 ado_pr 来源(PR 触发)也有页面手动提交
+  const tableIdOf = (name: string) => state.tables.find((t) => t.name === name)?.id
+  const seedIdsOf = (...names: string[]) =>
+    names.map(tableIdOf).filter((id): id is number => id != null)
+
+  // 5.1 已生效:页面提交的 DDL 变更(ods.ods_user_info 增加 email 字段)
+  const userInfoScript = state.scripts.find((s) => s.name === 'ddl_ods_user_info')
+  if (userInfoScript) {
+    const oldDdl = userInfoScript.sql_text
+    const newDdl = oldDdl.replace(
+      "  register_time TIMESTAMP COMMENT 'Registration time'",
+      "  register_time TIMESTAMP COMMENT 'Registration time',\n  email STRING COMMENT 'User email'",
+    )
+    if (newDdl !== oldDdl) {
+      const approvedEvent = createChangeEvent(state, {
+        change_type: 'ddl_change',
+        object_name: 'ods.ods_user_info',
+        old_text: oldDdl,
+        new_text: newDdl,
+        diff: { added: [{ name: 'email', data_type: 'STRING' }] } as unknown as ChangeDiff,
+        submitted_by: 'Doris',
+        seed_table_ids: seedIdsOf('ods.ods_user_info'),
+      })
+      applyChange(state, approvedEvent)
+      const decidedAt = nowIso()
+      for (const task of state.approvals.filter((a) => a.change_event_id === approvedEvent.id)) {
+        task.status = 'approved'
+        task.decided_at = decidedAt
+      }
+      approvedEvent.status = 'approved'
+      approvedEvent.resolved_at = decidedAt
+    }
+  }
+
+  // 5.2 待审批:页面提交的 DDL 变更(dwd.dwd_trade_order_detail 增加 coupon_amount 字段)
+  createChangeEvent(state, {
+    change_type: 'ddl_change',
+    object_name: 'dwd.dwd_trade_order_detail',
+    old_text: '',
+    new_text:
+      'ALTER TABLE dwd.dwd_trade_order_detail ADD COLUMN coupon_amount DECIMAL(12,2) COMMENT \'Coupon discount amount\'',
+    diff: { added: [{ name: 'coupon_amount', data_type: 'DECIMAL(12,2)' }] } as unknown as ChangeDiff,
+    submitted_by: 'Leo',
+    seed_table_ids: seedIdsOf('dwd.dwd_trade_order_detail'),
+  })
+
+  // 5.3 待审批:ADO PR 触发的建表变更(dws.dws_user_order_summary CTAS)
+  createChangeEvent(state, {
+    change_type: 'create_table',
+    object_name: 'dws.dws_user_order_summary',
+    old_text: '',
+    new_text: `CREATE TABLE dws.dws_user_order_summary AS
+SELECT
+    user_id,
+    COUNT(DISTINCT order_id) AS order_cnt,
+    SUM(total_amount) AS total_gmv
+FROM dwd.dwd_trade_order_detail
+GROUP BY user_id`,
+    diff: {
+      added: [
+        { name: 'user_id', data_type: 'BIGINT' },
+        { name: 'order_cnt', data_type: 'BIGINT' },
+        { name: 'total_gmv', data_type: 'DECIMAL(12,2)' },
+      ],
+      edges_added: [
+        { source: 'dwd.dwd_trade_order_detail', target: 'dws.dws_user_order_summary' },
+      ],
+    } as unknown as ChangeDiff,
+    submitted_by: 'Leo',
+    seed_table_ids: seedIdsOf('dwd.dwd_trade_order_detail'),
+    source: 'ado_pr',
+    source_detail: {
+      pr_id: 128,
+      pr_title: 'feat: add dws_user_order_summary CTAS',
+      pr_url:
+        'https://dev.azure.com/lineagehub-demo/data-warehouse/_git/data-warehouse/pullrequest/128',
+      repo: 'data-warehouse',
+      branch: 'feature/dws-user-order',
+    },
+  })
 
   return state
 }

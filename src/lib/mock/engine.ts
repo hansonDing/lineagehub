@@ -700,6 +700,8 @@ export function createChangeEvent(
     submitted_by: string
     seed_table_ids: number[]
     extra_tasks?: ExtraTask[]
+    source?: ChangeEvent['source']
+    source_detail?: ChangeEvent['source_detail']
   },
 ): ChangeEvent {
   const event: ChangeEvent = {
@@ -713,6 +715,8 @@ export function createChangeEvent(
     submitted_by: args.submitted_by || '',
     created_at: nowIso(),
     resolved_at: null,
+    source: args.source ?? 'manual',
+    source_detail: args.source_detail,
   }
   state.changes.push(event)
 
