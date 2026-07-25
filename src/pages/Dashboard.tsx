@@ -26,6 +26,7 @@ import { LayerBadge } from '@/components/common/LayerBadge'
 import { ChangeTypeBadge, StatusBadge } from '@/components/common/StatusBadge'
 import { StatCard } from '@/components/common/StatCard'
 import { toast } from '@/components/common/Toast'
+import { ChangeSourceBadge } from '@/components/changes/shared'
 import { notifyApprovalsChanged } from '@/components/Layout'
 import { useUser } from '@/hooks/useUser'
 
@@ -534,6 +535,11 @@ function RecentChangesCard({
                       {t(`common.changeType.${change.change_type}`)}
                     </span>
                     <StatusBadge status={change.status} className="shrink-0" />
+                    <ChangeSourceBadge
+                      source={change.source}
+                      detail={change.source_detail}
+                      className="shrink-0"
+                    />
                   </span>
                   <span className="mt-0.5 block text-xs text-slate-500">
                     <span className="font-mono">{formatChangeId(change.id)}</span>
