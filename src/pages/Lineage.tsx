@@ -431,6 +431,7 @@ export default function Lineage() {
   return (
     <div
       ref={containerRef}
+      data-tour="lineage-canvas"
       className="lineage-canvas relative h-full w-full overflow-hidden"
       style={{
         backgroundColor: CANVAS_BG,
