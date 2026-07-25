@@ -110,6 +110,18 @@ export interface ReportListItem extends Report {
 export type ChangeType = 'ddl_change' | 'sql_change' | 'create_table' | 'drop_table'
 export type ChangeStatus = 'pending' | 'approved' | 'rejected'
 
+/** 变更来源:页面手动提交 / Azure DevOps PR 触发 */
+export type ChangeSource = 'manual' | 'ado_pr'
+
+/** ADO PR 来源的附加信息 */
+export interface ChangeSourceDetail {
+  pr_id?: number
+  pr_title?: string
+  pr_url?: string
+  repo?: string
+  branch?: string
+}
+
 export interface ChangeEvent {
   id: number
   change_type: ChangeType
@@ -121,6 +133,8 @@ export interface ChangeEvent {
   submitted_by: string
   created_at: string
   resolved_at: string | null
+  source: ChangeSource
+  source_detail?: ChangeSourceDetail
 }
 
 /** 变更事件摘要(列表用,含影响与任务计数) */
