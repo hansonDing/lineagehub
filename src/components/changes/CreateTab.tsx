@@ -287,7 +287,7 @@ export function CreateTab({ onSubmitted }: { onSubmitted: (changeId: number) => 
       )}
 
       {/* 第①步:录入变更 */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div data-tour="changes-create" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <CardShell
           index={0}
           icon={FileDiff}
