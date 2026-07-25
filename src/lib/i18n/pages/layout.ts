@@ -24,6 +24,7 @@ export const zh: Record<string, string> = {
   'layout.search.group.scripts': '脚本',
   // ---------- 顶栏右侧 ----------
   'layout.notifications': '通知', // 铃铛 aria-label
+  'layout.tour.start': '新手引导', // 顶栏重放引导按钮 aria-label / title
   'layout.env.production': '生产环境',
   'layout.env.demo': '演示模式 · 后端未连接',
   'layout.env.demoTip': 'API 不可达,当前为浏览器内置演示数据',
@@ -51,6 +52,7 @@ export const en: Record<string, string> = {
   'layout.search.group.scripts': 'Scripts',
   // ---------- Topbar right ----------
   'layout.notifications': 'Notifications',
+  'layout.tour.start': 'Guided tour',
   'layout.env.production': 'Production',
   'layout.env.demo': 'Demo Mode · Backend offline',
   'layout.env.demoTip': 'API unreachable; showing built-in browser demo data',

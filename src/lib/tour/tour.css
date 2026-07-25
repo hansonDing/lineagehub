@@ -1,0 +1,127 @@
+/**
+ * driver.js popover 主题:与 LineageHub 设计一致
+ * 白底、12px 圆角、teal 主色(#0F766E / 强调 #2DD4BF)
+ * z-index:driver 默认 overlay 100000 / popover 100002,已高于抽屉(z-50)与顶栏(z-30),无需覆盖。
+ * 移动端:popover 最大宽度限制在视口内,375px 下不溢出。
+ */
+
+.driver-popover.lineagehub-tour {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.16),
+    0 2px 8px rgba(15, 23, 42, 0.08);
+  max-width: min(340px, calc(100vw - 24px));
+  padding: 18px;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #0f172a;
+  margin: 0;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-description {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #475569;
+  margin: 8px 0 0;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-close-btn {
+  color: #94a3b8;
+  font-size: 18px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  right: 10px;
+  top: 10px;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-close-btn:hover {
+  color: #0f172a;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-progress-text {
+  font-size: 11px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-footer {
+  margin-top: 14px;
+  gap: 8px;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-navigation-btns {
+  gap: 8px;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-prev-btn,
+.driver-popover.lineagehub-tour .driver-popover-next-btn {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 8px 14px;
+  border-radius: 6px;
+  text-shadow: none;
+  transition:
+    background-color 120ms,
+    border-color 120ms,
+    color 120ms;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-next-btn {
+  background-color: #0f766e;
+  border: 1px solid #0f766e;
+  color: #ffffff;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-next-btn:hover {
+  background-color: #0d9488;
+  border-color: #0d9488;
+  color: #ffffff;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-prev-btn {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-prev-btn:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.driver-popover.lineagehub-tour .driver-popover-prev-btn:disabled,
+.driver-popover.lineagehub-tour .driver-popover-next-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 箭头配色随白底 */
+.driver-popover.lineagehub-tour .driver-popover-arrow-side-left {
+  border-left-color: #ffffff;
+}
+.driver-popover.lineagehub-tour .driver-popover-arrow-side-right {
+  border-right-color: #ffffff;
+}
+.driver-popover.lineagehub-tour .driver-popover-arrow-side-top {
+  border-top-color: #ffffff;
+}
+.driver-popover.lineagehub-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: #ffffff;
+}
+
+/* 高亮描边:teal 强调 */
+.driver-active-element {
+  outline: 2px solid #2dd4bf !important;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
