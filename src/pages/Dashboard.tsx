@@ -839,7 +839,7 @@ export default function Dashboard() {
 
       {/* 待办审批 + 分层分布 */}
       <Section index={2} className="mt-4 grid grid-cols-12 gap-4">
-        <div className="col-span-12 xl:col-span-7">
+        <div className="col-span-12 xl:col-span-7" data-tour="dashboard-approvals">
           <ApprovalsCard
             items={approvals}
             loading={approvalsLoading}
@@ -848,7 +848,7 @@ export default function Dashboard() {
             onCommitted={fetchApprovals}
           />
         </div>
-        <div className="col-span-12 xl:col-span-5">
+        <div className="col-span-12 xl:col-span-5" data-tour="dashboard-layers">
           <LayerDistributionCard
             stats={stats}
             loading={statsLoading}
@@ -860,7 +860,7 @@ export default function Dashboard() {
 
       {/* 最近变更 + 热点表 */}
       <Section index={3} className="mt-4 grid grid-cols-12 gap-4">
-        <div className="col-span-12 xl:col-span-5">
+        <div className="col-span-12 xl:col-span-5" data-tour="dashboard-recent">
           <RecentChangesCard
             stats={stats}
             loading={statsLoading}
@@ -868,7 +868,7 @@ export default function Dashboard() {
             onRetry={fetchStats}
           />
         </div>
-        <div className="col-span-12 xl:col-span-7">
+        <div className="col-span-12 xl:col-span-7" data-tour="dashboard-hot">
           <HotTablesCard
             stats={stats}
             loading={statsLoading}
