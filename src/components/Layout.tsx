@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   Bell,
+  CircleHelp,
   Database,
   FileCode2,
   GitPullRequest,
@@ -33,6 +34,8 @@ import { LangSwitcher } from '@/components/LangSwitcher'
 import { Button } from '@/components/ui/button'
 import { useT } from '@/lib/i18n'
 import { useUser } from '@/hooks/useUser'
+import { destroyActiveTour, useTour } from '@/lib/tour/useTour'
+import { isTourDone } from '@/lib/tour/tourSteps'
 
 /** 审批收件箱刷新事件:审批操作后 dispatch 以更新侧栏徽标 */
 export const APPROVALS_REFRESH_EVENT = 'lineagehub:approvals-refresh'
@@ -91,7 +94,7 @@ function Sidebar({
       </div>
 
       {/* 主导航 */}
-      <nav className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-3">
+      <nav data-tour="sidebar" className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-3">
         {NAV_ITEMS.filter((item) => !('ownerOnly' in item && item.ownerOnly) || role === 'System Owner').map((item) => (
           <NavLink
             key={item.to}
@@ -335,7 +338,7 @@ function UserMenu({ pendingCount }: { pendingCount: number }) {
   }
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
+    <div className="flex items-center gap-2 sm:gap-3" data-tour="user-menu">
       {/* 通知铃铛 */}
       <button
         type="button"
@@ -368,11 +371,33 @@ function UserMenu({ pendingCount }: { pendingCount: number }) {
 
 export default function Layout() {
   const location = useLocation()
-  const { t } = useT()
-  const { user, role } = useUser()
+  const { t, lang } = useT()
+  const { user, role, isAuthenticated } = useUser()
+  const { start: startTour } = useTour()
   const [pendingCount, setPendingCount] = useState(0)
   const [demoMode, setDemoMode] = useState(isDemoMode())
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // 首次进入系统(无完成标记)自动开始新手引导;延迟启动等首屏渲染稳定。
+  // 注意:useNavigate 身份随路由匹配变化,若直接依赖 startTour 会在引导跨页导航时
+  // 误触发本 effect 重启引导,因此经 ref 调用且全程只自动启动一次。
+  const startTourRef = useRef(startTour)
+  startTourRef.current = startTour
+  const autoStartedRef = useRef(false)
+  useEffect(() => {
+    if (autoStartedRef.current || !isAuthenticated || isTourDone()) return
+    autoStartedRef.current = true
+    const timer = window.setTimeout(() => startTourRef.current(), 800)
+    return () => window.clearTimeout(timer)
+  }, [isAuthenticated])
+
+  // 语言切换时若引导正在进行,直接关闭(driver 文案随创建时的语言固定,重放即为新语言)
+  const prevLangRef = useRef(lang)
+  useEffect(() => {
+    if (prevLangRef.current === lang) return
+    prevLangRef.current = lang
+    destroyActiveTour()
+  }, [lang])
 
   // 订阅演示模式:API 降级到内置模拟数据时即时显示琥珀色徽标
   useEffect(() => {
@@ -491,6 +516,16 @@ export default function Layout() {
               <span className="hidden md:inline">{t('layout.env.demo')}</span>
             </span>
           )}
+          {/* 新手引导重放 */}
+          <button
+            type="button"
+            onClick={startTour}
+            aria-label={t('layout.tour.start')}
+            title={t('layout.tour.start')}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors duration-120 hover:bg-slate-100 hover:text-slate-900"
+          >
+            <CircleHelp className="size-4" />
+          </button>
           <UserMenu pendingCount={pendingCount} />
         </header>
         {/* 内容区:血缘图谱页 0 padding 撑满画布 */}
