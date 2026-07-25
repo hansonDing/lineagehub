@@ -873,6 +873,7 @@ export async function listApprovals(params?: {
           new_text: '',
           diff_summary: '{}',
           status: 'pending',
+          source: 'manual',
           submitted_by: '',
           created_at: t.decided_at ?? '',
           resolved_at: null,
