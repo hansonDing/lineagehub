@@ -26,6 +26,7 @@ import {
   listSystems,
   listTables,
   type DemoModeListener,
+  type ApprovalInboxItem,
 } from '@/lib/api'
 import { Avatar } from '@/components/common/Avatar'
 import { LayerBadge } from '@/components/common/LayerBadge'
@@ -331,6 +332,40 @@ function UserMenu({ pendingCount }: { pendingCount: number }) {
   const { t } = useT()
   const { user, role, logout } = useUser()
   const navigate = useNavigate()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifItems, setNotifItems] = useState<ApprovalInboxItem[]>([])
+  const [notifLoaded, setNotifLoaded] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
+
+  // 点击面板外部时收起通知下拉
+  useEffect(() => {
+    if (!notifOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [notifOpen])
+
+  // 首次打开时加载待我审批列表(最多展示 8 条)
+  const toggleNotif = async () => {
+    const next = !notifOpen
+    setNotifOpen(next)
+    if (next && !notifLoaded) {
+      try {
+        const list = await listApprovals({ status: 'pending', approver: user })
+        setNotifItems(list.slice(0, 8))
+      } catch {
+        setNotifItems([])
+      }
+      setNotifLoaded(true)
+    }
+  }
+
+  const goInbox = (changeId?: number) => {
+    setNotifOpen(false)
+    navigate(changeId ? `/changes?tab=inbox&change=${changeId}` : '/changes?tab=inbox')
+  }
 
   const handleLogout = () => {
     logout() // 清除 localStorage token 与内存态
@@ -339,17 +374,61 @@ function UserMenu({ pendingCount }: { pendingCount: number }) {
 
   return (
     <div className="flex items-center gap-2 sm:gap-3" data-tour="user-menu">
-      {/* 通知铃铛 */}
-      <button
-        type="button"
-        aria-label={t('layout.notifications')}
-        className="relative rounded p-1 text-slate-500 transition-colors duration-120 hover:text-slate-900"
-      >
-        <Bell className="size-4" />
-        {pendingCount > 0 && (
-          <span className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-pending" />
+      {/* 通知铃铛(点击展开待审批列表) */}
+      <div className="relative" ref={notifRef}>
+        <button
+          type="button"
+          aria-label={t('layout.notifications')}
+          onClick={() => void toggleNotif()}
+          className={cn(
+            'relative rounded p-1 transition-colors duration-120',
+            notifOpen ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'
+          )}
+        >
+          <Bell className="size-4" />
+          {pendingCount > 0 && (
+            <span className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-pending" />
+          )}
+        </button>
+        {notifOpen && (
+          <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+            <div className="border-b border-slate-100 px-3 py-2 text-[13px] font-medium text-slate-900">
+              {t('layout.notifications.title')}{pendingCount > 0 ? ` (${pendingCount})` : ''}
+            </div>
+            <div className="max-h-72 overflow-y-auto">
+              {notifItems.length === 0 ? (
+                <div className="px-3 py-6 text-center text-xs text-slate-500">
+                  {t('layout.notifications.empty')}
+                </div>
+              ) : (
+                notifItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => goInbox(item.change_event_id)}
+                    className="flex w-full flex-col gap-0.5 border-b border-slate-50 px-3 py-2 text-left transition-colors hover:bg-slate-50"
+                  >
+                    <span className="text-[13px] font-medium text-slate-900">
+                      {`CHG-${String(item.change_event_id).padStart(4, '0')}`}
+                      <span className="ml-1.5 font-normal text-slate-500">{item.change_event?.object_name}</span>
+                    </span>
+                    <span className="truncate text-xs text-slate-500">
+                      {t('layout.notifications.target')}: {item.target_name} · {item.change_event?.submitted_by}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => goInbox()}
+              className="w-full border-t border-slate-100 px-3 py-2 text-center text-xs font-medium text-teal-600 transition-colors hover:bg-slate-50"
+            >
+              {t('layout.notifications.viewAll')}
+            </button>
+          </div>
         )}
-      </button>
+      </div>
       {/* 登录用户(头像 + 姓名/角色) */}
       <div className="flex items-center gap-2">
         <Avatar name={user} size={28} />

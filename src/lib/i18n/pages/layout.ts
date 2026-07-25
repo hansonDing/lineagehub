@@ -24,6 +24,10 @@ export const zh: Record<string, string> = {
   'layout.search.group.scripts': '脚本',
   // ---------- 顶栏右侧 ----------
   'layout.notifications': '通知', // 铃铛 aria-label
+  'layout.notifications.title': '待我审批',
+  'layout.notifications.empty': '暂无待审批事项',
+  'layout.notifications.target': '审批对象',
+  'layout.notifications.viewAll': '查看全部',
   'layout.tour.start': '新手引导', // 顶栏重放引导按钮 aria-label / title
   'layout.env.production': '生产环境',
   'layout.env.demo': '演示模式 · 后端未连接',
@@ -52,6 +56,10 @@ export const en: Record<string, string> = {
   'layout.search.group.scripts': 'Scripts',
   // ---------- Topbar right ----------
   'layout.notifications': 'Notifications',
+  'layout.notifications.title': 'Pending my approval',
+  'layout.notifications.empty': 'No pending approvals',
+  'layout.notifications.target': 'Target',
+  'layout.notifications.viewAll': 'View all',
   'layout.tour.start': 'Guided tour',
   'layout.env.production': 'Production',
   'layout.env.demo': 'Demo Mode · Backend offline',
