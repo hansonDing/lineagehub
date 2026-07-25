@@ -278,6 +278,8 @@ def create_change_event(
     submitted_by: str,
     seed_table_ids: list,
     extra_tasks: list | None = None,
+    source: str = "manual",
+    source_detail: dict | None = None,
 ) -> ChangeEvent:
     """创建 pending 变更事件 + 审批任务(不应用变更)。
 
@@ -293,6 +295,8 @@ def create_change_event(
         diff_summary=json.dumps(diff, ensure_ascii=False),
         status="pending",
         submitted_by=submitted_by or "",
+        source=source or "manual",
+        source_detail=json.dumps(source_detail or {}, ensure_ascii=False),
     )
     session.add(event)
     session.flush()

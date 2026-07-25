@@ -191,6 +191,19 @@ def ado_webhook(
     submitted_by = ((resource.get("createdBy") or {}).get("displayName")) or "ado-webhook"
     version = ((resource.get("lastMergeSourceCommit") or {}).get("commitId")) or ""
 
+    # 来源追踪:从 payload.resource 提取 PR 元数据
+    repo_name = ((resource.get("repository") or {}).get("name")) or (cfg.get("repo") or "")
+    branch = (resource.get("sourceRefName") or "").removeprefix("refs/heads/")
+    org_url = (cfg.get("org_url") or "").rstrip("/")
+    project = cfg.get("project") or ""
+    source_detail = {
+        "pr_id": int(pr_id),
+        "pr_title": resource.get("title") or "",
+        "pr_url": f"{org_url}/{project}/_git/{repo_name}/pullrequest/{int(pr_id)}",
+        "repo": repo_name,
+        "branch": branch,
+    }
+
     created_events: list = []
     skipped: list = []
 
@@ -202,6 +215,10 @@ def ado_webhook(
     for f in files:
         try:
             event = _dispatch_sql(db, f["path"], f["content"], submitted_by)
+            # 标记来源为 ADO PR(submit_* 内部已 commit,这里补写来源字段再提交一次)
+            event.source = "ado_pr"
+            event.source_detail = json.dumps(source_detail, ensure_ascii=False)
+            db.commit()
             created_events.append(event.id)
             notify.notify_approvers(db, event)  # 失败静默
         except HTTPException as exc:

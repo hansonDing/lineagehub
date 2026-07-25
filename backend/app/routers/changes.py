@@ -144,6 +144,7 @@ def submit_ddl_change(payload: DdlChangeRequest, db: Session = Depends(get_db)):
         new_text=payload.new_ddl,
         diff=diff,
         submitted_by=payload.submitted_by,
+        source="manual",
         seed_table_ids=[table.id],
     )
     db.commit()
@@ -190,6 +191,7 @@ def submit_sql_change(payload: SqlChangeRequest, db: Session = Depends(get_db)):
         new_text=payload.new_sql,
         diff=diff,
         submitted_by=payload.submitted_by,
+        source="manual",
         seed_table_ids=seed_ids,
     )
     db.commit()
@@ -259,6 +261,7 @@ def submit_create_table_change(payload: CreateTableChangeRequest, db: Session = 
         new_text=payload.new_ddl,
         diff=diff,
         submitted_by=payload.submitted_by,
+        source="manual",
         seed_table_ids=[t.id for t in src_tables],
         extra_tasks=[
             {
@@ -313,6 +316,7 @@ def submit_drop_table_change(payload: DropTableChangeRequest, db: Session = Depe
         new_text=f"DROP TABLE {table.name};",
         diff=diff,
         submitted_by=payload.submitted_by,
+        source="manual",
         seed_table_ids=[table.id],
         # 表有 owner 时才加 owner 任务;无 owner 时由兜底逻辑交给提交人自审,避免任务卡死
         extra_tasks=(

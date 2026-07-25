@@ -45,8 +45,33 @@ def get_db():
         db.close()
 
 
+def _migrate_change_events(eng):
+    """轻量迁移:为旧库的 change_events 表补 source / source_detail 列(幂等)。"""
+    from sqlalchemy import text
+
+    try:
+        with eng.begin() as conn:
+            cols = {
+                row[1]
+                for row in conn.execute(text("PRAGMA table_info(change_events)")).fetchall()
+            }
+            if not cols:
+                return  # 表不存在(create_all 会建)
+            if "source" not in cols:
+                conn.execute(
+                    text("ALTER TABLE change_events ADD COLUMN source VARCHAR DEFAULT 'manual'")
+                )
+            if "source_detail" not in cols:
+                conn.execute(
+                    text("ALTER TABLE change_events ADD COLUMN source_detail TEXT DEFAULT '{}'")
+                )
+    except Exception:  # noqa: BLE001 迁移失败不阻断启动(列已存在等情况)
+        pass
+
+
 def init_db():
-    """建表(幂等)。"""
+    """建表(幂等)+ 旧库轻量迁移。"""
     from backend.app import models  # noqa: F401  确保模型已注册
 
     Base.metadata.create_all(bind=engine)
+    _migrate_change_events(engine)

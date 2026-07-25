@@ -1,8 +1,9 @@
 """Pydantic 模型:严格对应架构契约第 2 节的 API 字段。"""
+import json
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 # ---------------------------------------------------------------- 系统
@@ -248,8 +249,22 @@ class ChangeEventOut(BaseModel):
     diff_summary: str
     status: str
     submitted_by: str
+    source: str = "manual"  # manual / ado_pr
+    source_detail: dict = {}  # 从 JSON 文本解析(ado_pr 时含 pr_id/pr_title/pr_url/repo/branch)
     created_at: datetime
     resolved_at: Optional[datetime] = None
+
+    @field_validator("source_detail", mode="before")
+    @classmethod
+    def _parse_source_detail(cls, v):
+        """ORM 上是 JSON 文本;解析失败/为空时回退 {}。"""
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v or "{}")
+                return parsed if isinstance(parsed, dict) else {}
+            except Exception:
+                return {}
+        return v if isinstance(v, dict) else {}
 
 
 class ChangeListItem(ChangeEventOut):

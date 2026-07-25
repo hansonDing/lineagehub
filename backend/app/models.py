@@ -137,6 +137,9 @@ class ChangeEvent(Base):
     diff_summary = Column(Text, default="{}")  # JSON:列差异或血缘边差异
     status = Column(String, default="pending")  # pending / approved / rejected
     submitted_by = Column(String, default="")
+    source = Column(String, default="manual")  # manual(页面提交)/ ado_pr(ADO PR webhook)
+    # JSON:ado_pr 时存 {"pr_id","pr_title","pr_url","repo","branch"}
+    source_detail = Column(Text, default="{}")
     created_at = Column(DateTime, default=utcnow)
     resolved_at = Column(DateTime, nullable=True)
 
