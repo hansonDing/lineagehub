@@ -585,7 +585,7 @@ export function InboxTab() {
   }
 
   return (
-    <div>
+    <div data-tour="changes-inbox">
       {/* 工具条 */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5">
@@ -724,4 +724,3 @@ export function InboxTab() {
     </div>
   )
 }
-
