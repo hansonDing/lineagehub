@@ -11,6 +11,9 @@ import {
   Check,
   ChevronDown,
   Clock,
+  ExternalLink,
+  GitPullRequest,
+  Globe,
   Search,
   Send,
   Table2,
@@ -18,8 +21,17 @@ import {
 } from 'lucide-react'
 import { animate, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { ApproverRole, ChangeDiff, ChangeStatus, ChangeType, ColumnDiffEntry } from '@/lib/api'
+import type {
+  ApproverRole,
+  ChangeDiff,
+  ChangeSource,
+  ChangeSourceDetail,
+  ChangeStatus,
+  ChangeType,
+  ColumnDiffEntry,
+} from '@/lib/api'
 import { useT } from '@/lib/i18n'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { columnNewType, columnOldType } from './types'
 
 // ---------- 数字计数(400ms easeOut,仅首屏) ----------
@@ -57,6 +69,117 @@ export function RoleBadge({ role, className }: { role: ApproverRole | string; cl
     >
       {label}
     </span>
+  )
+}
+
+// ---------- 变更来源徽标(页面 / ADO PR) ----------
+
+/**
+ * 来源徽标:manual → 中性色「页面」;ado_pr → 蓝色「ADO PR」。
+ * ado_pr 时点击弹出 PR 详情(pr_id / 分支 / 仓库),有 pr_url 可新窗口打开;
+ * hover 通过 title 兜底展示 PR 摘要。触发器用 span,可安全嵌在 button 行内。
+ */
+export function ChangeSourceBadge({
+  source,
+  detail,
+  className,
+}: {
+  source?: ChangeSource | string | null
+  detail?: ChangeSourceDetail | null
+  className?: string
+}) {
+  const { t } = useT()
+  if (source !== 'ado_pr') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 text-[11px] font-medium leading-4 text-slate-500',
+          className,
+        )}
+        title={t('changes.source.manualDesc')}
+      >
+        <Globe className="size-3" />
+        {t('changes.source.manual')}
+      </span>
+    )
+  }
+  const prId = detail?.pr_id
+  const hoverTitle = [
+    detail?.pr_title,
+    prId != null ? `#${prId}` : null,
+    detail?.branch,
+    detail?.repo,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const trigger = (
+    <span
+      role="button"
+      tabIndex={0}
+      title={hoverTitle || t('changes.source.adoPr')}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      className={cn(
+        'inline-flex cursor-pointer items-center gap-1 rounded bg-blue-50 px-1.5 text-[11px] font-medium leading-4 text-blue-700 outline-none hover:bg-blue-100',
+        className,
+      )}
+    >
+      <GitPullRequest className="size-3" />
+      {t('changes.source.adoPr')}
+      {prId != null && <span className="font-mono tabular-nums">#{prId}</span>}
+    </span>
+  )
+  if (!detail) return trigger
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-72 p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-900">
+          <GitPullRequest className="size-3.5 text-blue-600" />
+          {t('changes.source.adoPr')}
+          {prId != null && <span className="font-mono text-slate-500">#{prId}</span>}
+        </p>
+        <dl className="space-y-1 text-xs">
+          {detail.pr_title && (
+            <div className="flex gap-2">
+              <dt className="shrink-0 text-slate-400">{t('changes.source.pr.title')}</dt>
+              <dd className="min-w-0 text-slate-700">{detail.pr_title}</dd>
+            </div>
+          )}
+          {detail.branch && (
+            <div className="flex gap-2">
+              <dt className="shrink-0 text-slate-400">{t('changes.source.pr.branch')}</dt>
+              <dd className="min-w-0 truncate font-mono text-slate-700" title={detail.branch}>
+                {detail.branch}
+              </dd>
+            </div>
+          )}
+          {detail.repo && (
+            <div className="flex gap-2">
+              <dt className="shrink-0 text-slate-400">{t('changes.source.pr.repo')}</dt>
+              <dd className="min-w-0 truncate font-mono text-slate-700" title={detail.repo}>
+                {detail.repo}
+              </dd>
+            </div>
+          )}
+        </dl>
+        {detail.pr_url && (
+          <a
+            href={detail.pr_url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:underline"
+          >
+            <ExternalLink className="size-3" />
+            {t('changes.source.viewPr')}
+          </a>
+        )}
+      </PopoverContent>
+    </Popover>
   )
 }
 

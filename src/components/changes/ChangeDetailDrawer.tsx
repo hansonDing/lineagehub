@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, BarChart3, CheckCircle2, Info, Send, XCircle } from 'lucide-react'
+import { AlertCircle, BarChart3, CheckCircle2, ExternalLink, GitPullRequest, Globe, Info, Send, XCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { ReportListItem, System, TableListItem } from '@/lib/api'
@@ -20,7 +20,7 @@ import { Tabs } from '@/components/common/Tabs'
 import { APPROVALS_REFRESH_EVENT } from '@/components/Layout'
 import type { ChangeDetailReal } from './types'
 import { changeTitle, isDiffEmpty, lineDiff } from './types'
-import { ApprovalStateIcon, ChangeDiffView, RoleBadge, StatusStepper } from './shared'
+import { ApprovalStateIcon, ChangeDiffView, ChangeSourceBadge, RoleBadge, StatusStepper } from './shared'
 
 function SectionShell({
   index,
@@ -201,8 +201,60 @@ export function ChangeDetailDrawer({
             <StatusStepper status={event.status} />
           </SectionShell>
 
+          {/* 来源 */}
+          <SectionShell index={1} title={t('changes.drawer.section.source')}>
+            {event.source === 'ado_pr' ? (
+              <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ChangeSourceBadge source={event.source} detail={event.source_detail} />
+                  {event.source_detail?.pr_title && (
+                    <span className="min-w-0 text-[13px] font-medium text-slate-900">
+                      {event.source_detail.pr_title}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                  {event.source_detail?.pr_id != null && (
+                    <span className="inline-flex items-center gap-1">
+                      <GitPullRequest className="size-3.5 text-slate-400" />
+                      <span className="font-mono">#{event.source_detail.pr_id}</span>
+                    </span>
+                  )}
+                  {event.source_detail?.branch && (
+                    <span>
+                      {t('changes.source.pr.branch')}{' '}
+                      <span className="font-mono text-slate-700">{event.source_detail.branch}</span>
+                    </span>
+                  )}
+                  {event.source_detail?.repo && (
+                    <span>
+                      {t('changes.source.pr.repo')}{' '}
+                      <span className="font-mono text-slate-700">{event.source_detail.repo}</span>
+                    </span>
+                  )}
+                </div>
+                {event.source_detail?.pr_url && (
+                  <a
+                    href={event.source_detail.pr_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 transition-colors duration-120 hover:bg-slate-100"
+                  >
+                    <ExternalLink className="size-3" />
+                    {t('changes.source.viewPr')}
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="flex items-center gap-1.5 text-[13px] text-slate-700">
+                <Globe className="size-3.5 text-slate-400" />
+                {t('changes.source.manualDesc')}
+              </p>
+            )}
+          </SectionShell>
+
           {/* 变更内容 */}
-          <SectionShell index={1} title={t('changes.drawer.section.content')}>
+          <SectionShell index={2} title={t('changes.drawer.section.content')}>
             <Tabs
               className="mb-3"
               items={[
@@ -228,7 +280,7 @@ export function ChangeDetailDrawer({
           </SectionShell>
 
           {/* 影响分析 */}
-          <SectionShell index={2} title={t('changes.impact.reportsWithCount', { count: detail.impacted_reports.length })}>
+          <SectionShell index={3} title={t('changes.impact.reportsWithCount', { count: detail.impacted_reports.length })}>
             {detail.impacted_reports.length === 0 ? (
               <p className="text-xs text-slate-400">{t('changes.drawer.empty.reports')}</p>
             ) : (
@@ -258,7 +310,7 @@ export function ChangeDetailDrawer({
             )}
           </SectionShell>
 
-          <SectionShell index={3} title={t('changes.impact.systemsWithCount', { count: detail.impacted_systems.length })}>
+          <SectionShell index={4} title={t('changes.impact.systemsWithCount', { count: detail.impacted_systems.length })}>
             {detail.impacted_systems.length === 0 ? (
               <p className="text-xs text-slate-400">{t('changes.drawer.empty.systems')}</p>
             ) : (
@@ -282,7 +334,7 @@ export function ChangeDetailDrawer({
             )}
           </SectionShell>
 
-          <SectionShell index={4} title={t('changes.impact.tablesWithCount', { count: detail.impacted_tables.length })}>
+          <SectionShell index={5} title={t('changes.impact.tablesWithCount', { count: detail.impacted_tables.length })}>
             {detail.impacted_tables.length === 0 ? (
               <p className="text-xs text-slate-400">{t('changes.drawer.empty.tables')}</p>
             ) : (
@@ -307,7 +359,7 @@ export function ChangeDetailDrawer({
           </SectionShell>
 
           {/* 审批任务 */}
-          <SectionShell index={5} title={t('changes.drawer.approvals.title', { count: detail.approvals.length })}>
+          <SectionShell index={6} title={t('changes.drawer.approvals.title', { count: detail.approvals.length })}>
             <div className="overflow-hidden rounded-md border border-slate-200">
               <table className="w-full border-collapse text-left">
                 <thead>

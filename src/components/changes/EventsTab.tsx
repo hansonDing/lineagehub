@@ -25,11 +25,18 @@ import {
 } from '@/components/ui/select'
 import type { ChangeDetailReal, ChangeListItemReal } from './types'
 import { changeTitle, parseDiffSummary } from './types'
-import { ProgressRing } from './shared'
+import { ChangeSourceBadge, ProgressRing } from './shared'
 
 type EventStatus = 'pending' | 'approving' | 'approved' | 'rejected'
 type StatusFilter = 'all' | EventStatus
 type TimeRange = '7d' | '30d' | 'all'
+type SourceFilter = 'all' | 'manual' | 'ado_pr'
+
+const SOURCE_CHIPS: { key: SourceFilter; labelKey: string }[] = [
+  { key: 'all', labelKey: 'changes.source.filter.all' },
+  { key: 'manual', labelKey: 'changes.source.filter.manual' },
+  { key: 'ado_pr', labelKey: 'changes.source.filter.adoPr' },
+]
 
 const STATUS_CHIPS: { key: StatusFilter; labelKey: string }[] = [
   { key: 'all', labelKey: 'changes.events.filter.all' },
@@ -72,6 +79,7 @@ export function EventsTab({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | ChangeType>('all')
   const [timeRange, setTimeRange] = useState<TimeRange>('all')
   const [details, setDetails] = useState<Map<number, ChangeDetailReal>>(new Map())
@@ -124,6 +132,7 @@ export function EventsTab({
   const filtered = useMemo(() => {
     const now = Date.now()
     return events.filter((ev) => {
+      if (sourceFilter !== 'all' && (ev.source ?? 'manual') !== sourceFilter) return false
       if (statusFilter !== 'all' && deriveStatus(ev) !== statusFilter) return false
       if (typeFilter !== 'all' && ev.change_type !== typeFilter) return false
       if (timeRange !== 'all') {
@@ -132,7 +141,22 @@ export function EventsTab({
       }
       return true
     })
-  }, [events, statusFilter, typeFilter, timeRange])
+  }, [events, statusFilter, sourceFilter, typeFilter, timeRange])
+
+  /** 统计摘要:随来源筛选联动(不含状态/类型/时间筛选,口径为当前来源全集) */
+  const summary = useMemo(() => {
+    const scoped = events.filter((ev) => sourceFilter === 'all' || (ev.source ?? 'manual') === sourceFilter)
+    let pending = 0
+    let approved = 0
+    let rejected = 0
+    for (const ev of scoped) {
+      const s = deriveStatus(ev)
+      if (s === 'approved') approved++
+      else if (s === 'rejected') rejected++
+      else pending++
+    }
+    return { total: scoped.length, pending, approved, rejected }
+  }, [events, sourceFilter])
 
   /** 按日分组(列表已按创建时间倒序) */
   const groups = useMemo(() => {
@@ -148,6 +172,35 @@ export function EventsTab({
 
   return (
     <div>
+      {/* 来源筛选 + 统计摘要(随来源筛选联动) */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
+          {SOURCE_CHIPS.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => setSourceFilter(chip.key)}
+              className={cn(
+                'flex h-6 items-center rounded-md px-2.5 text-xs font-medium transition-colors duration-120',
+                sourceFilter === chip.key
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'text-slate-500 hover:text-slate-900',
+              )}
+            >
+              {t(chip.labelKey)}
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto text-xs text-slate-500 tabular-nums">
+          {t('changes.events.summary', {
+            total: summary.total,
+            pending: summary.pending,
+            approved: summary.approved,
+            rejected: summary.rejected,
+          })}
+        </span>
+      </div>
+
       {/* 工具条 */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5">
@@ -269,6 +322,11 @@ export function EventsTab({
                             {formatChangeId(ev.id)}
                           </span>
                           <ChangeTypeBadge type={ev.change_type} className="shrink-0" />
+                          <ChangeSourceBadge
+                            source={ev.source}
+                            detail={ev.source_detail}
+                            className="shrink-0"
+                          />
                         </div>
                         <div className="mt-1 truncate text-xs text-slate-500">
                           {t('changes.events.submittedBy', { name: ev.submitted_by })}
